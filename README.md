@@ -109,17 +109,39 @@ node dist/index.js .
 
 ## AI Mode
 
-Sarraf should work in two modes:
+Sarraf works in two modes:
 
 - standard analysis mode with no token required
 - AI-assisted mode when the user provides an API token
 
-The base CLI must remain useful without AI. AI is an upgrade layer, not a requirement.
+The base CLI remains useful without AI. AI is an upgrade layer, not a requirement.
 
-Example direction:
+Environment variables:
 
 ```bash
-SARAF_AI_TOKEN=your_token npx sarraf .
+AI_PROVIDER=openai
+AI_TOKEN=your_token
+AI_MODEL=gpt-5-mini
+```
+
+Current provider values:
+
+- `openai`
+- `anthropic`
+- `gemini`
+
+Examples:
+
+```bash
+AI_PROVIDER=openai AI_TOKEN=your_token npx sarraf . --ai
+AI_PROVIDER=anthropic AI_TOKEN=your_token npx sarraf . --ai
+AI_PROVIDER=gemini AI_TOKEN=your_token npx sarraf . --ai
+```
+
+CLI overrides:
+
+```bash
+npx sarraf . --ai --provider openai --model gpt-5-mini
 ```
 
 ## Product Vision
