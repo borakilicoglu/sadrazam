@@ -5,6 +5,11 @@
 ### Added
 - Repository contribution and release rules in `AGENTS.md`
 
+## v0.1.0-alpha.8
+
+### Changed
+- Republished Sadrazam metadata and README to refresh npm package page state
+
 ## v0.1.0-alpha.7
 
 ### Changed
