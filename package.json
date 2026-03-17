@@ -22,7 +22,15 @@
     "cli",
     "ai"
   ],
-  "author": "",
+  "author": "Bora Kilicoglu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/borakilicoglu/sarraf.git"
+  },
+  "homepage": "https://github.com/borakilicoglu/sarraf#readme",
+  "bugs": {
+    "url": "https://github.com/borakilicoglu/sarraf/issues"
+  },
   "license": "ISC",
   "type": "module",
   "dependencies": {
