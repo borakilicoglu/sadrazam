@@ -1,6 +1,6 @@
 {
-  "name": "sarraf",
-  "version": "0.1.0-alpha.2",
+  "name": "kantar",
+  "version": "0.1.0-alpha.3",
   "description": "Dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.",
   "main": "dist/index.js",
   "bin": {

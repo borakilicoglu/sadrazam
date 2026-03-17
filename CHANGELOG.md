@@ -5,6 +5,11 @@
 ### Added
 - Repository contribution and release rules in `AGENTS.md`
 
+## v0.1.0-alpha.3
+
+### Changed
+- Switched the npm package name from `sarraf` to `kantar` for publish testing
+
 ## v0.1.0-alpha.2
 
 ### Added
