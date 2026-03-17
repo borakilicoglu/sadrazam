@@ -5,6 +5,11 @@
 ### Added
 - Repository contribution and release rules in `AGENTS.md`
 
+## v0.1.0-alpha.5
+
+### Changed
+- Switched the npm package name from `mizan` to `vezir` for publish testing
+
 ## v0.1.0-alpha.4
 
 ### Changed
