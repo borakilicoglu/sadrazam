@@ -1,6 +1,6 @@
 {
-  "name": "vezir",
-  "version": "0.1.0-alpha.5",
+  "name": "sadrazam",
+  "version": "0.1.0-alpha.6",
   "description": "Dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.",
   "main": "dist/index.js",
   "bin": {
