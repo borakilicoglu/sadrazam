@@ -5,6 +5,11 @@
 ### Added
 - Repository contribution and release rules in `AGENTS.md`
 
+## v0.1.0-alpha.4
+
+### Changed
+- Switched the npm package name from `kantar` to `mizan` for publish testing
+
 ## v0.1.0-alpha.3
 
 ### Changed
