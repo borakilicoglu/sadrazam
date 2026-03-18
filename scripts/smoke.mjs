@@ -48,6 +48,23 @@ const scenarios = [
     },
   },
   {
+    name: "plugin-cli-project",
+    cwd: path.join(rootDir, "test", "fixtures", "plugin-cli-project"),
+    args: ["--reporter", "json"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.equal(workspace.summary.findings, 0);
+      assert.deepEqual(workspace.summary.activePlugins, ["jest", "vite", "vitest"]);
+      assert.deepEqual(workspace.externalImports, [
+        "@vitejs/plugin-react",
+        "jest",
+        "ts-jest",
+        "vite",
+        "vitest",
+      ]);
+    },
+  },
+  {
     name: "inputs-project",
     cwd: path.join(rootDir, "test", "fixtures", "inputs-project"),
     args: ["--reporter", "json"],

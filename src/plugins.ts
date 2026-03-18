@@ -33,7 +33,46 @@ interface ScriptPlugin {
   resolve(tokens: string[], packageDir: string): Promise<PluginContribution | null>;
 }
 
+
+function createConfigEntryPlugin(name: string, commands: string[], flags: string[]): ScriptPlugin {
+  return {
+    name,
+    supports(command) {
+      return commands.includes(command);
+    },
+    async resolve(tokens, packageDir) {
+      const fileEntries = new Set<string>();
+
+      for (let index = 0; index < tokens.length; index += 1) {
+        const token = stripQuotes(tokens[index] ?? "");
+        const next = stripQuotes(tokens[index + 1] ?? "");
+
+        if (!flags.includes(token) || !next) {
+          continue;
+        }
+
+        const configPath = path.resolve(packageDir, next);
+
+        if (await fileExists(configPath)) {
+          fileEntries.add(configPath);
+        }
+
+        index += 1;
+      }
+
+      return fileEntries.size > 0
+        ? {
+            fileEntries: [...fileEntries],
+          }
+        : null;
+    },
+  };
+}
+
 const PLUGINS: ScriptPlugin[] = [
+  createConfigEntryPlugin("vite", ["vite"], ["--config"]),
+  createConfigEntryPlugin("vitest", ["vitest"], ["--config"]),
+  createConfigEntryPlugin("jest", ["jest"], ["--config"]),
   {
     name: "prettier",
     supports(command) {

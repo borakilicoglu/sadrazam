@@ -130,6 +130,22 @@ describe("CLI", () => {
 
 
 
+
+  it("follows tool-specific config arguments for vite, vitest, and jest", () => {
+    const report = runJsonReport("plugin-cli-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.summary.activePlugins).toEqual(["jest", "vite", "vitest"]);
+    expect(workspace.findings).toEqual([]);
+    expect(workspace.externalImports).toEqual([
+      "@vitejs/plugin-react",
+      "jest",
+      "ts-jest",
+      "vite",
+      "vitest",
+    ]);
+  });
+
   it("accepts plugin inputs from config for extra entry files and packages", () => {
     const report = runJsonReport("inputs-project");
     const workspace = report.workspaces[0];
