@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.1.0-beta.5
+
+### Added
+- Unused file detection based on package entries, script entries, and local import reachability
+
+### Changed
+- Added fixture, CLI, and smoke coverage for unreachable source files
+
 ## v0.1.0-beta.4
 
 ### Added
