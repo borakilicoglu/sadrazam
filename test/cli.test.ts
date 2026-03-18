@@ -132,4 +132,18 @@ describe("CLI", () => {
     ]);
     expect(report.workspaces[0].unusedFiles).toEqual(["src/unused.ts"]);
   });
+
+  it("reports unused exports in reachable files", () => {
+    const report = runJsonReport("unused-exports-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-exports",
+        title: "Unused exports",
+        items: ["src/lib.ts: unusedHelper"],
+      },
+    ]);
+    expect(report.workspaces[0].unusedExports).toEqual(["src/lib.ts: unusedHelper"]);
+  });
 });

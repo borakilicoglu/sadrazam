@@ -56,6 +56,11 @@ export function getActiveFindings(
       title: "Unused files",
       items: result.unusedFiles,
     },
+    {
+      type: "unused-exports",
+      title: "Unused exports",
+      items: result.unusedExports,
+    },
   ];
 
   return candidates.filter((candidate) => {

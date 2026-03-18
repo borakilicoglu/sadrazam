@@ -7,6 +7,7 @@ import { readScanCache, writeScanCache } from "./cache.js";
 import { findSourceFiles } from "./fileFinder.js";
 import { parseImports } from "./importParser.js";
 import { readPackageMetadata } from "./packageReader.js";
+import { parseExportedNames, parseLocalReferences, type LocalReference } from "./symbolParser.js";
 import { parsePackageScripts } from "./scriptParser.js";
 import { mapToSourcePath } from "./sourceMapper.js";
 
@@ -29,6 +30,8 @@ export interface FileScanResult {
   filePath: string;
   relativePath: string;
   imports: string[];
+  localReferences: LocalReference[];
+  exportedNames: string[];
   isProduction: boolean;
 }
 
@@ -54,6 +57,7 @@ export interface ScanResult {
   unusedDevDependencies: string[];
   misplacedDevDependencies: string[];
   unusedFiles: string[];
+  unusedExports: string[];
   performance: ScanPerformance;
   cached: boolean;
 }
@@ -123,12 +127,16 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     dedupedFiles.map(async (filePath) => {
       const source = await readFile(filePath, "utf8");
       const imports = parseImports(source).map((entry) => entry.specifier);
+      const localReferences = parseLocalReferences(source);
+      const exportedNames = parseExportedNames(source);
       const relativePath = path.relative(absoluteRoot, filePath) || path.basename(filePath);
 
       return {
         filePath,
         relativePath,
         imports,
+        localReferences,
+        exportedNames,
         isProduction: isProductionFilePath(absoluteRoot, filePath),
       };
     }),
@@ -164,6 +172,12 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     packageMetadata.entrySpecifiers,
     scriptAnalysis.fileEntries,
   );
+  const unusedExports = getUnusedExports(
+    absoluteRoot,
+    fileResults,
+    packageMetadata.entrySpecifiers,
+    scriptAnalysis.fileEntries,
+  );
   const analysisMs = nodePerformance.now() - analysisStart;
 
   const resultWithoutRuntime = {
@@ -179,6 +193,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     unusedDevDependencies,
     misplacedDevDependencies,
     unusedFiles,
+    unusedExports,
   };
 
   if (options.cache) {
@@ -282,11 +297,95 @@ function getUnusedFiles(
   packageEntries: string[],
   scriptEntryFiles: string[],
 ): string[] {
+  const { reachableFiles } = getReachableFilePaths(rootDir, files, packageEntries, scriptEntryFiles);
+
+  if (reachableFiles.size === 0) {
+    return [];
+  }
+
+  return files
+    .filter((file) => !reachableFiles.has(file.filePath))
+    .map((file) => file.relativePath)
+    .sort();
+}
+
+function getUnusedExports(
+  rootDir: string,
+  files: FileScanResult[],
+  packageEntries: string[],
+  scriptEntryFiles: string[],
+): string[] {
+  const filePathSet = new Set(files.map((file) => file.filePath));
+  const { entryFiles, reachableFiles } = getReachableFilePaths(
+    rootDir,
+    files,
+    packageEntries,
+    scriptEntryFiles,
+  );
+
+  if (reachableFiles.size === 0) {
+    return [];
+  }
+
+  const exportedNamesByFile = new Map(
+    files.map((file) => [file.filePath, new Set(file.exportedNames)] as const),
+  );
+  const usedExports = new Map<string, Set<string>>();
+
+  for (const entryFile of entryFiles) {
+    markAllExportsUsed(entryFile, exportedNamesByFile, usedExports);
+  }
+
+  for (const file of files) {
+    if (!reachableFiles.has(file.filePath)) {
+      continue;
+    }
+
+    for (const reference of file.localReferences) {
+      if (!isLocalSpecifier(reference.specifier)) {
+        continue;
+      }
+
+      const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet);
+
+      if (!target) {
+        continue;
+      }
+
+      if (reference.usesAllExports) {
+        markAllExportsUsed(target, exportedNamesByFile, usedExports);
+        continue;
+      }
+
+      for (const name of reference.importedNames) {
+        markExportUsed(target, name, usedExports);
+      }
+    }
+  }
+
+  return files
+    .filter((file) => reachableFiles.has(file.filePath) && file.exportedNames.length > 0)
+    .flatMap((file) => {
+      const used = usedExports.get(file.filePath) ?? new Set<string>();
+
+      return file.exportedNames
+        .filter((name) => !used.has(name))
+        .map((name) => `${file.relativePath}: ${name}`);
+    })
+    .sort();
+}
+
+function getReachableFilePaths(
+  rootDir: string,
+  files: FileScanResult[],
+  packageEntries: string[],
+  scriptEntryFiles: string[],
+): { entryFiles: string[]; reachableFiles: Set<string> } {
   const filePathSet = new Set(files.map((file) => file.filePath));
   const entryFiles = resolveEntryFiles(rootDir, files, packageEntries, scriptEntryFiles, filePathSet);
 
   if (entryFiles.length === 0) {
-    return [];
+    return { entryFiles: [], reachableFiles: new Set<string>() };
   }
 
   const graph = buildLocalImportGraph(files, filePathSet);
@@ -309,10 +408,7 @@ function getUnusedFiles(
     }
   }
 
-  return files
-    .filter((file) => !visited.has(file.filePath))
-    .map((file) => file.relativePath)
-    .sort();
+  return { entryFiles, reachableFiles: visited };
 }
 
 function buildLocalImportGraph(
@@ -324,12 +420,12 @@ function buildLocalImportGraph(
   for (const file of files) {
     const localImports = new Set<string>();
 
-    for (const specifier of file.imports) {
-      if (!isLocalSpecifier(specifier)) {
+    for (const reference of file.localReferences) {
+      if (!isLocalSpecifier(reference.specifier)) {
         continue;
       }
 
-      const resolved = resolveLocalImport(file.filePath, specifier, filePathSet);
+      const resolved = resolveLocalImport(file.filePath, reference.specifier, filePathSet);
 
       if (resolved) {
         localImports.add(resolved);
@@ -340,6 +436,32 @@ function buildLocalImportGraph(
   }
 
   return graph;
+}
+
+function markAllExportsUsed(
+  filePath: string,
+  exportedNamesByFile: Map<string, Set<string>>,
+  usedExports: Map<string, Set<string>>,
+): void {
+  const exportedNames = exportedNamesByFile.get(filePath);
+
+  if (!exportedNames) {
+    return;
+  }
+
+  for (const name of exportedNames) {
+    markExportUsed(filePath, name, usedExports);
+  }
+}
+
+function markExportUsed(
+  filePath: string,
+  exportName: string,
+  usedExports: Map<string, Set<string>>,
+): void {
+  const names = usedExports.get(filePath) ?? new Set<string>();
+  names.add(exportName);
+  usedExports.set(filePath, names);
 }
 
 function resolveEntryFiles(

@@ -28,6 +28,7 @@ const SUPPORTED_FINDING_TYPES: FindingType[] = [
   "unused-devDependencies",
   "misplaced-devDependencies",
   "unused-files",
+  "unused-exports",
 ];
 
 program
