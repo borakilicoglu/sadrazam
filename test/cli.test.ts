@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, cpSync, mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -96,6 +96,55 @@ describe("CLI", () => {
       expect(first.mode.cache).toBe(true);
       expect(first.workspaces[0].summary.cached).toBe(false);
       expect(second.workspaces[0].summary.cached).toBe(true);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("removes unused dependencies and devDependencies when fix mode is enabled", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "sadrazam-fix-"));
+    const tempProject = path.join(tempRoot, "project");
+
+    cpSync(path.join(rootDir, "test", "fixtures", "config-project"), tempProject, { recursive: true });
+
+    try {
+      const packagePath = path.join(tempProject, "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8")) as {
+        dependencies: Record<string, string>;
+        devDependencies: Record<string, string>;
+      };
+
+      packageJson.dependencies.react = "^19.0.0";
+      packageJson.devDependencies.eslint = "^9.0.0";
+
+      writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}
+`, "utf8");
+      writeFileSync(
+        path.join(tempProject, "sadrazam.json"),
+        `${JSON.stringify({ reporter: "json" }, null, 2)}\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject, ["--fix"]);
+      const updatedPackageJson = JSON.parse(readFileSync(packagePath, "utf8")) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+
+      expect(report.mode.fix).toBe(true);
+      expect(report.appliedFixes).toEqual([
+        {
+          packagePath,
+          removedDependencies: ["react"],
+          removedDevDependencies: ["eslint"],
+        },
+      ]);
+      expect(report.workspaces[0].findings).toEqual([]);
+      expect(updatedPackageJson.dependencies).toEqual({ commander: "^14.0.0" });
+      expect(updatedPackageJson.devDependencies).toEqual({
+        tsx: "^4.21.0",
+        typescript: "^5.9.3",
+      });
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

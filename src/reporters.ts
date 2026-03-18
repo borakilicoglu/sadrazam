@@ -34,6 +34,7 @@ export interface RenderReportInput {
   memory: boolean;
   watch: boolean;
   cache: boolean;
+  fix: boolean;
   production: boolean;
   strict: boolean;
   include: FindingType[];
@@ -70,6 +71,11 @@ export interface RenderReportInput {
     provider: string;
     model?: string;
   };
+  appliedFixes?: Array<{
+    packagePath: string;
+    removedDependencies: string[];
+    removedDevDependencies: string[];
+  }>;
 }
 
 export function renderReport(input: RenderReportInput): string {
@@ -83,6 +89,7 @@ export function renderReport(input: RenderReportInput): string {
           memory: input.memory,
           watch: input.watch,
           cache: input.cache,
+          fix: input.fix,
           production: input.production,
           strict: input.strict,
           include: input.include,
@@ -91,6 +98,7 @@ export function renderReport(input: RenderReportInput): string {
         ai: input.ai ?? null,
         aiSummary: input.aiSummary ?? null,
         warnings: input.warnings ?? [],
+        appliedFixes: input.appliedFixes ?? [],
         configurationHints: input.configurationHints ?? [],
         configSource: input.configSource ?? null,
         rulesSummary: input.rulesSummary ?? null,
@@ -145,6 +153,21 @@ export function renderReport(input: RenderReportInput): string {
 
     for (const warning of input.warnings) {
       lines.push(`- ${warning}`);
+    }
+  }
+
+  if (input.appliedFixes && input.appliedFixes.length > 0) {
+    lines.push("");
+    lines.push(pc.green("Auto-fix"));
+
+    for (const fix of input.appliedFixes) {
+      lines.push(`Package: ${fix.packagePath}`);
+      if (fix.removedDependencies.length > 0) {
+        lines.push(`Removed dependencies: ${fix.removedDependencies.join(", ")}`);
+      }
+      if (fix.removedDevDependencies.length > 0) {
+        lines.push(`Removed devDependencies: ${fix.removedDevDependencies.join(", ")}`);
+      }
     }
   }
 
@@ -275,6 +298,7 @@ export function renderReport(input: RenderReportInput): string {
     lines.push(pc.dim(`Trace export: ${input.traceExport ?? "-"}`));
     lines.push(pc.dim(`Watch: ${input.watch ? "enabled" : "disabled"}`));
     lines.push(pc.dim(`Cache: ${input.cache ? "enabled" : "disabled"}`));
+    lines.push(pc.dim(`Fix: ${input.fix ? "enabled" : "disabled"}`));
     lines.push(pc.dim(`Performance: ${input.performance ? "enabled" : "disabled"}`));
     lines.push(pc.dim(`Memory: ${input.memory ? "enabled" : "disabled"}`));
     if (input.rulesSummary) {
@@ -328,6 +352,7 @@ function describeMode(input: RenderReportInput): string {
     input.performance ? "performance" : null,
     input.memory ? "memory" : null,
     input.watch ? "watch" : null,
+    input.fix ? "fix" : null,
     input.debug ? "debug" : null,
   ].filter(Boolean);
 

@@ -10,6 +10,7 @@ import fg from "fast-glob";
 import pc from "picocolors";
 
 import { generateAiSummary } from "./aiClient.js";
+import { applyAutoFixes } from "./autoFix.js";
 import { resolveAiConfig, SUPPORTED_AI_PROVIDERS } from "./aiConfig.js";
 import { getConfigurationHints } from "./configHints.js";
 import { loadSadrazamConfig, type SadrazamConfig } from "./config.js";
@@ -19,6 +20,7 @@ import {
   renderReport,
   SUPPORTED_REPORTERS,
   type FindingType,
+  type ReportWorkspace,
   type ReporterType,
 } from "./reporters.js";
 import { scanProject, type ScanMemory } from "./scan.js";
@@ -67,6 +69,7 @@ program
   .option("--performance", "print performance timing information")
   .option("--memory", "print memory usage information")
   .option("--cache", "reuse scan results when source inputs have not changed")
+  .option("--fix", "auto-fix safe package.json issues")
   .option("--watch", "re-run analysis when project files change")
   .option("--trace <package>", "trace where a package is used")
   .option("--trace-export <target>", "trace where an export is used (relativePath:exportName)")
@@ -84,6 +87,7 @@ Examples:
   sadrazam . --trace typescript
   sadrazam . --trace-export src/lib.ts:usedHelper
   sadrazam . --cache --performance
+  sadrazam . --fix
   sadrazam . --memory
   sadrazam . --watch
   sadrazam . --workspace packages/web
@@ -122,6 +126,10 @@ async function runScanCommand(
       warnings.push("AI summary disabled in watch mode.");
     }
 
+    if (runtimeOptions.watchRun && mergedOptions.fix) {
+      warnings.push("Auto-fix disabled in watch mode.");
+    }
+
     const aiConfig = resolveAiConfig({
       ai: aiEnabled,
       provider: mergedOptions.provider,
@@ -138,23 +146,13 @@ async function runScanCommand(
     const { rootDir, workspaces } = await discoverWorkspaces(targetDir, workspaceFilters);
     const discoverWorkspacesMs = nodePerformance.now() - discoverStart;
 
-    const workspaceReports = await Promise.all(
-      workspaces.map(async (workspace) => {
-        const result = await scanProject(workspace.dir, {
-          production: Boolean(mergedOptions.production),
-          strict: Boolean(mergedOptions.strict),
-          cache: Boolean(mergedOptions.cache || mergedOptions.watch),
-          ...(loadedConfig.config.inputs ? { pluginInputs: loadedConfig.config.inputs } : {}),
-        });
-        const findings = getActiveFindings(result, rules, Boolean(mergedOptions.production));
+    let workspaceReports = await collectWorkspaceReports(workspaces, mergedOptions, loadedConfig.config, rules);
+    const autoFixEnabled = Boolean(mergedOptions.fix) && !runtimeOptions.watchRun;
+    const appliedFixes = autoFixEnabled ? await applyAutoFixes(workspaceReports) : [];
 
-        return {
-          workspace,
-          result,
-          findings,
-        };
-      }),
-    );
+    if (appliedFixes.length > 0) {
+      workspaceReports = await collectWorkspaceReports(workspaces, mergedOptions, loadedConfig.config, rules);
+    }
 
     let aiSummary: string | undefined;
     let aiSummaryMs = 0;
@@ -186,6 +184,7 @@ async function runScanCommand(
       memory: Boolean(mergedOptions.memory),
       watch: Boolean(mergedOptions.watch),
       cache: Boolean(mergedOptions.cache || mergedOptions.watch),
+      fix: Boolean(mergedOptions.fix),
       production: Boolean(mergedOptions.production),
       strict: Boolean(mergedOptions.strict),
       include,
@@ -215,6 +214,7 @@ async function runScanCommand(
         ),
       },
       ...(warnings.length > 0 ? { warnings } : {}),
+      ...(appliedFixes.length > 0 ? { appliedFixes } : {}),
       ...(mergedOptions.trace ? { trace: String(mergedOptions.trace) } : {}),
       ...(mergedOptions.traceExport ? { traceExport: String(mergedOptions.traceExport) } : {}),
       ...(aiSummary ? { aiSummary } : {}),
@@ -297,6 +297,31 @@ async function runWatchMode(targetDir: string, rawOptions: Record<string, unknow
 
     process.on("SIGINT", handleSigint);
   });
+}
+
+async function collectWorkspaceReports(
+  workspaces: Awaited<ReturnType<typeof discoverWorkspaces>>["workspaces"],
+  options: CliOptions,
+  config: SadrazamConfig,
+  rules: FindingRules,
+): Promise<ReportWorkspace[]> {
+  return Promise.all(
+    workspaces.map(async (workspace) => {
+      const result = await scanProject(workspace.dir, {
+        production: Boolean(options.production),
+        strict: Boolean(options.strict),
+        cache: Boolean(options.cache || options.watch),
+        ...(config.inputs ? { pluginInputs: config.inputs } : {}),
+      });
+      const findings = getActiveFindings(result, rules, Boolean(options.production));
+
+      return {
+        workspace,
+        result,
+        findings,
+      };
+    }),
+  );
 }
 
 async function createWatchFingerprint(targetDir: string): Promise<string> {
@@ -393,6 +418,7 @@ interface CliOptions {
   performance: boolean;
   memory: boolean;
   cache: boolean;
+  fix: boolean;
   watch: boolean;
   trace: string | undefined;
   traceExport: string | undefined;
@@ -418,6 +444,7 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
     performance: rawOptions.performance === true ? true : config.performance ?? false,
     memory: rawOptions.memory === true ? true : config.memory ?? false,
     cache: rawOptions.cache === true ? true : config.cache ?? false,
+    fix: rawOptions.fix === true,
     watch: rawOptions.watch === true ? true : config.watch ?? false,
     trace: asOptionalString(rawOptions.trace) ?? config.trace,
     traceExport: asOptionalString(rawOptions.traceExport),
