@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { builtinModules } from "node:module";
+import { performance as nodePerformance } from "node:perf_hooks";
 import path from "node:path";
 
 import { findSourceFiles } from "./fileFinder.js";
@@ -15,6 +16,15 @@ export interface FileScanResult {
   isProduction: boolean;
 }
 
+export interface ScanPerformance {
+  discoverInputsMs: number;
+  scriptParseMs: number;
+  mapFilesMs: number;
+  readFilesMs: number;
+  analysisMs: number;
+  totalMs: number;
+}
+
 export interface ScanResult {
   rootDir: string;
   packagePath: string;
@@ -27,6 +37,7 @@ export interface ScanResult {
   unusedDependencies: string[];
   unusedDevDependencies: string[];
   misplacedDevDependencies: string[];
+  performance: ScanPerformance;
 }
 
 export interface ScanOptions {
@@ -35,25 +46,36 @@ export interface ScanOptions {
 }
 
 export async function scanProject(rootDir: string, options: ScanOptions = {}): Promise<ScanResult> {
+  const totalStart = nodePerformance.now();
   const absoluteRoot = path.resolve(rootDir);
+
+  const discoverInputsStart = nodePerformance.now();
   const [files, packageMetadata] = await Promise.all([
     findSourceFiles(absoluteRoot),
     readPackageMetadata(absoluteRoot),
   ]);
+  const discoverInputsMs = nodePerformance.now() - discoverInputsStart;
+
+  const scriptParseStart = nodePerformance.now();
   const scriptAnalysis = await parsePackageScripts(
     packageMetadata.packageDir,
     packageMetadata.scripts,
   );
+  const scriptParseMs = nodePerformance.now() - scriptParseStart;
   const allFiles = mergeFiles(files, scriptAnalysis.fileEntries);
 
   const selectedFiles = options.production || options.strict
     ? allFiles.filter((filePath) => isProductionFilePath(absoluteRoot, filePath))
     : allFiles;
+
+  const mapFilesStart = nodePerformance.now();
   const mappedFiles = await Promise.all(
     selectedFiles.map((filePath) => mapToSourcePath(absoluteRoot, filePath)),
   );
+  const mapFilesMs = nodePerformance.now() - mapFilesStart;
   const dedupedFiles = mergeFiles([], mappedFiles);
 
+  const readFilesStart = nodePerformance.now();
   const fileResults = await Promise.all(
     dedupedFiles.map(async (filePath) => {
       const source = await readFile(filePath, "utf8");
@@ -68,7 +90,9 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
       };
     }),
   );
+  const readFilesMs = nodePerformance.now() - readFilesStart;
 
+  const analysisStart = nodePerformance.now();
   const externalImports = collectExternalImports(fileResults, scriptAnalysis.commandPackages);
   const packageTraces = collectPackageTraces(fileResults, scriptAnalysis.commandUsage);
   const missingPackages = externalImports.filter(
@@ -90,6 +114,8 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const misplacedDevDependencies = options.strict
     ? getMisplacedDevDependencies(fileResults, packageMetadata.devDependencies)
     : [];
+  const scriptEntryFiles = await mapScriptEntryFiles(absoluteRoot, scriptAnalysis.fileEntries);
+  const analysisMs = nodePerformance.now() - analysisStart;
 
   return {
     rootDir: absoluteRoot,
@@ -97,12 +123,20 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     files: fileResults,
     externalImports,
     scriptCommandPackages: scriptAnalysis.commandPackages,
-    scriptEntryFiles: await mapScriptEntryFiles(absoluteRoot, scriptAnalysis.fileEntries),
+    scriptEntryFiles,
     packageTraces,
     missingPackages,
     unusedDependencies,
     unusedDevDependencies,
     misplacedDevDependencies,
+    performance: {
+      discoverInputsMs: roundMs(discoverInputsMs),
+      scriptParseMs: roundMs(scriptParseMs),
+      mapFilesMs: roundMs(mapFilesMs),
+      readFilesMs: roundMs(readFilesMs),
+      analysisMs: roundMs(analysisMs),
+      totalMs: roundMs(nodePerformance.now() - totalStart),
+    },
   };
 }
 
@@ -293,4 +327,8 @@ function isProductionFilePath(rootDir: string, filePath: string): boolean {
     /\.spec\.[^.]+$/i.test(normalizedPath) ||
     /\.stories\.[^.]+$/i.test(normalizedPath)
   );
+}
+
+function roundMs(value: number): number {
+  return Number(value.toFixed(1));
 }

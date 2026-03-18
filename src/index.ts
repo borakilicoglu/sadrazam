@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { performance as nodePerformance } from "node:perf_hooks";
 import path from "node:path";
 
 import pc from "picocolors";
@@ -7,6 +8,7 @@ import { Command } from "commander";
 
 import { generateAiSummary } from "./aiClient.js";
 import { resolveAiConfig, SUPPORTED_AI_PROVIDERS } from "./aiConfig.js";
+import { getConfigurationHints } from "./configHints.js";
 import { loadSadrazamConfig, type SadrazamConfig } from "./config.js";
 import { getActiveFindings, type FindingRules } from "./findings.js";
 import {
@@ -41,6 +43,7 @@ program
   .option("--production", "scan production files only")
   .option("--strict", "flag devDependencies used in production files")
   .option("--debug", "print resolved debug information")
+  .option("--performance", "print performance timing information")
   .option("--trace <package>", "trace where a package is used")
   .option("--ignore-packages <names>", "comma-separated package names to ignore in findings")
   .option("--allow-unused-dependencies <names>", "comma-separated dependency allowlist")
@@ -54,6 +57,7 @@ Examples:
   sadrazam .
   sadrazam . --reporter json
   sadrazam . --trace typescript
+  sadrazam . --performance
   sadrazam . --workspace packages/web
   sadrazam . --production --strict
   AI_PROVIDER=openai AI_TOKEN=... sadrazam . --ai
@@ -61,6 +65,7 @@ Examples:
   )
   .action(async (target, options) => {
     try {
+      const totalStart = nodePerformance.now();
       const targetDir = path.resolve(target);
       const loadedConfig = await loadSadrazamConfig(targetDir);
       const mergedOptions = mergeCliWithConfig(options, loadedConfig.config);
@@ -75,7 +80,11 @@ Examples:
       const exclude = parseFindingTypes(mergedOptions.exclude);
       const workspaceFilters = parseCsvOption(mergedOptions.workspace);
       const rules = buildFindingRules(mergedOptions, include, exclude);
+
+      const discoverStart = nodePerformance.now();
       const { rootDir, workspaces } = await discoverWorkspaces(targetDir, workspaceFilters);
+      const discoverWorkspacesMs = nodePerformance.now() - discoverStart;
+
       const workspaceReports = await Promise.all(
         workspaces.map(async (workspace) => {
           const result = await scanProject(workspace.dir, {
@@ -93,25 +102,38 @@ Examples:
       );
       const warnings: string[] = [];
       let aiSummary: string | undefined;
+      let aiSummaryMs = 0;
 
       if (aiConfig) {
+        const aiStart = nodePerformance.now();
         try {
           aiSummary = await generateAiSummary(aiConfig, workspaceReports);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           warnings.push(`AI summary unavailable: ${message}`);
         }
+        aiSummaryMs = nodePerformance.now() - aiStart;
       }
+
+      const configurationHints = loadedConfig.source === "defaults"
+        ? []
+        : getConfigurationHints(loadedConfig.config, workspaceReports);
+      const workspaceScanMs = workspaceReports.reduce(
+        (sum, workspace) => sum + workspace.result.performance.totalMs,
+        0,
+      );
 
       const report = renderReport({
         targetDir: rootDir,
         reporter,
         debug: Boolean(mergedOptions.debug),
+        performance: Boolean(mergedOptions.performance),
         production: Boolean(mergedOptions.production),
         strict: Boolean(mergedOptions.strict),
         include,
         exclude,
         workspaces: workspaceReports,
+        configurationHints,
         configSource: loadedConfig.source,
         rulesSummary: {
           ignorePackages: rules.ignorePackages,
@@ -119,6 +141,12 @@ Examples:
           allowUnusedDevDependencies: rules.allowUnusedDevDependencies,
           allowMissingPackages: rules.allowMissingPackages,
           allowMisplacedDevDependencies: rules.allowMisplacedDevDependencies,
+        },
+        performanceSummary: {
+          discoverWorkspacesMs: roundMs(discoverWorkspacesMs),
+          workspaceScanMs: roundMs(workspaceScanMs),
+          aiSummaryMs: roundMs(aiSummaryMs),
+          totalMs: roundMs(nodePerformance.now() - totalStart),
         },
         ...(warnings.length > 0 ? { warnings } : {}),
         ...(mergedOptions.trace ? { trace: String(mergedOptions.trace) } : {}),
@@ -205,6 +233,7 @@ interface CliOptions {
   production: boolean;
   strict: boolean;
   debug: boolean;
+  performance: boolean;
   trace: string | undefined;
   ignorePackages: string | undefined;
   allowUnusedDependencies: string | undefined;
@@ -225,6 +254,7 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
     production: rawOptions.production === true ? true : config.production ?? false,
     strict: rawOptions.strict === true ? true : config.strict ?? false,
     debug: rawOptions.debug === true ? true : config.debug ?? false,
+    performance: rawOptions.performance === true ? true : config.performance ?? false,
     trace: asOptionalString(rawOptions.trace) ?? config.trace,
     ignorePackages: asOptionalString(rawOptions.ignorePackages) ?? config.ignorePackages?.join(","),
     allowUnusedDependencies:
@@ -241,4 +271,8 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
 
 function asOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function roundMs(value: number): number {
+  return Number(value.toFixed(1));
 }

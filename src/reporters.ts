@@ -28,6 +28,7 @@ export interface RenderReportInput {
   targetDir: string;
   reporter: ReporterType;
   debug: boolean;
+  performance: boolean;
   production: boolean;
   strict: boolean;
   include: FindingType[];
@@ -36,6 +37,7 @@ export interface RenderReportInput {
   trace?: string;
   aiSummary?: string;
   warnings?: string[];
+  configurationHints?: string[];
   configSource?: string;
   rulesSummary?: {
     ignorePackages: string[];
@@ -43,6 +45,12 @@ export interface RenderReportInput {
     allowUnusedDevDependencies: string[];
     allowMissingPackages: string[];
     allowMisplacedDevDependencies: string[];
+  };
+  performanceSummary?: {
+    discoverWorkspacesMs: number;
+    workspaceScanMs: number;
+    aiSummaryMs: number;
+    totalMs: number;
   };
   ai?: {
     provider: string;
@@ -57,6 +65,7 @@ export function renderReport(input: RenderReportInput): string {
         targetDir: input.targetDir,
         mode: {
           debug: input.debug,
+          performance: input.performance,
           production: input.production,
           strict: input.strict,
           include: input.include,
@@ -65,19 +74,22 @@ export function renderReport(input: RenderReportInput): string {
         ai: input.ai ?? null,
         aiSummary: input.aiSummary ?? null,
         warnings: input.warnings ?? [],
+        configurationHints: input.configurationHints ?? [],
         configSource: input.configSource ?? null,
         rulesSummary: input.rulesSummary ?? null,
+        performance: input.performance ? input.performanceSummary ?? null : null,
         workspaces: input.workspaces.map(({ workspace, result, findings }) => ({
           workspace,
           summary: {
             filesScanned: result.files.length,
             externalPackagesUsed: result.externalImports.length,
-          findings: findings.reduce((sum, finding) => sum + finding.items.length, 0),
-          scriptCommandPackages: result.scriptCommandPackages,
-          scriptEntryFiles: result.scriptEntryFiles,
-        },
+            findings: findings.reduce((sum, finding) => sum + finding.items.length, 0),
+            scriptCommandPackages: result.scriptCommandPackages,
+            scriptEntryFiles: result.scriptEntryFiles,
+          },
           findings,
           externalImports: result.externalImports,
+          performance: input.performance ? result.performance : null,
           traces: input.trace
             ? {
                 package: input.trace,
@@ -107,6 +119,26 @@ export function renderReport(input: RenderReportInput): string {
     }
   }
 
+  if (input.configurationHints && input.configurationHints.length > 0) {
+    lines.push("");
+    lines.push(pc.yellow("Configuration hints"));
+
+    for (const hint of input.configurationHints) {
+      lines.push(`- ${hint}`);
+    }
+  }
+
+  if (input.performance && input.performanceSummary) {
+    lines.push("");
+    lines.push(pc.blue("Performance"));
+    lines.push(`Discover workspaces: ${formatMs(input.performanceSummary.discoverWorkspacesMs)}`);
+    lines.push(`Workspace scans: ${formatMs(input.performanceSummary.workspaceScanMs)}`);
+    if (input.ai) {
+      lines.push(`AI summary: ${formatMs(input.performanceSummary.aiSummaryMs)}`);
+    }
+    lines.push(`Total: ${formatMs(input.performanceSummary.totalMs)}`);
+  }
+
   if (input.ai) {
     lines.push("");
     lines.push(pc.magenta("AI mode"));
@@ -133,6 +165,9 @@ export function renderReport(input: RenderReportInput): string {
     lines.push(`Findings: ${findingCount}`);
     if (result.scriptCommandPackages.length > 0) {
       lines.push(`Script packages: ${result.scriptCommandPackages.join(", ")}`);
+    }
+    if (input.performance) {
+      lines.push(`Scan time: ${formatMs(result.performance.totalMs)}`);
     }
 
     if (findingCount === 0) {
@@ -177,6 +212,7 @@ export function renderReport(input: RenderReportInput): string {
     lines.push(pc.dim(`Include: ${input.include.join(", ") || "-"}`));
     lines.push(pc.dim(`Exclude: ${input.exclude.join(", ") || "-"}`));
     lines.push(pc.dim(`Trace: ${input.trace ?? "-"}`));
+    lines.push(pc.dim(`Performance: ${input.performance ? "enabled" : "disabled"}`));
     if (input.rulesSummary) {
       lines.push(pc.dim(`Ignore packages: ${input.rulesSummary.ignorePackages.join(", ") || "-"}`));
       lines.push(
@@ -209,6 +245,7 @@ function describeMode(input: RenderReportInput): string {
   const enabled = [
     input.production ? "production" : null,
     input.strict ? "strict" : null,
+    input.performance ? "performance" : null,
     input.debug ? "debug" : null,
   ].filter(Boolean);
 
@@ -225,4 +262,8 @@ function colorizeFindingTitle(type: FindingType, title: string): string {
   }
 
   return pc.yellow(title);
+}
+
+function formatMs(value: number): string {
+  return `${value.toFixed(1)}ms`;
 }

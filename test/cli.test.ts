@@ -34,6 +34,25 @@ describe("CLI", () => {
     expect(workspace.summary.scriptCommandPackages).toEqual(["tsx", "typescript"]);
   });
 
+  it("reports configuration hints for stale ignore and allowlist entries", () => {
+    const report = runJsonReport("config-project");
+
+    expect(report.configurationHints).toEqual([
+      'allowUnusedDevDependencies entry "typescript" has no effect and can be removed.',
+    ]);
+  });
+
+  it("includes performance timings when performance mode is enabled", () => {
+    const report = runJsonReport("config-project", ["--performance"]);
+    const workspace = report.workspaces[0];
+
+    expect(report.mode.performance).toBe(true);
+    expect(report.performance.totalMs).toBeGreaterThanOrEqual(0);
+    expect(report.performance.workspaceScanMs).toBeGreaterThanOrEqual(0);
+    expect(workspace.performance.totalMs).toBeGreaterThanOrEqual(0);
+    expect(workspace.performance.readFilesMs).toBeGreaterThanOrEqual(0);
+  });
+
   it("discovers pnpm workspaces and respects local workspace dependencies", () => {
     const report = runJsonReport("monorepo-project");
     const workspaceNames = report.workspaces.map((workspace: { workspace: { name: string } }) => workspace.workspace.name).sort();
