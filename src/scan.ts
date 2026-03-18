@@ -305,6 +305,7 @@ function getUnusedFiles(
 
   return files
     .filter((file) => !reachableFiles.has(file.filePath))
+    .filter((file) => !shouldIgnoreUnusedFile(file.relativePath))
     .map((file) => file.relativePath)
     .sort();
 }
@@ -606,6 +607,14 @@ function shouldTreatNodeTypesAsUsed(
 function isTypeScriptFile(filePath: string): boolean {
   return /\.(ts|tsx|cts|mts)$/i.test(filePath);
 }
+function shouldIgnoreUnusedFile(relativePath: string): boolean {
+  return /(\.|\/)(test|spec)\.[^.]+$/i.test(relativePath)
+    || /(^|\/)__tests__(\/|$)/i.test(relativePath)
+    || /(^|\/)stories\//i.test(relativePath)
+    || /\.stories\.[^.]+$/i.test(relativePath)
+    || /(^|\/)(vitest|jest|tsdown|vite|webpack|rollup|eslint|prettier|biome)\.config\.[^.]+$/i.test(relativePath);
+}
+
 
 function getUnusedDeclaredPackages(
   declaredPackages: Set<string>,
