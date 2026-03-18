@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.1.2
+
+### Added
+- Safe auto-fix support with `--fix` for unused `dependencies` and `devDependencies`
+
+### Changed
+- Re-run scans after auto-fix and report applied package.json removals in text and JSON reporters
+
 ## v0.1.1
 
 ### Added
