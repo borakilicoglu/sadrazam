@@ -3,6 +3,7 @@ import { builtinModules } from "node:module";
 import { performance as nodePerformance } from "node:perf_hooks";
 import path from "node:path";
 
+import { readScanCache, writeScanCache } from "./cache.js";
 import { findSourceFiles } from "./fileFinder.js";
 import { parseImports } from "./importParser.js";
 import { readPackageMetadata } from "./packageReader.js";
@@ -38,11 +39,13 @@ export interface ScanResult {
   unusedDevDependencies: string[];
   misplacedDevDependencies: string[];
   performance: ScanPerformance;
+  cached: boolean;
 }
 
 export interface ScanOptions {
   production?: boolean;
   strict?: boolean;
+  cache?: boolean;
 }
 
 export async function scanProject(rootDir: string, options: ScanOptions = {}): Promise<ScanResult> {
@@ -74,6 +77,30 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   );
   const mapFilesMs = nodePerformance.now() - mapFilesStart;
   const dedupedFiles = mergeFiles([], mappedFiles);
+
+  if (options.cache) {
+    const cachedResult = await readScanCache({
+      packageDir: packageMetadata.packageDir,
+      packagePath: packageMetadata.packagePath,
+      filePaths: dedupedFiles,
+      options,
+    });
+
+    if (cachedResult) {
+      return {
+        ...cachedResult,
+        cached: true,
+        performance: {
+          discoverInputsMs: roundMs(discoverInputsMs),
+          scriptParseMs: roundMs(scriptParseMs),
+          mapFilesMs: roundMs(mapFilesMs),
+          readFilesMs: 0,
+          analysisMs: 0,
+          totalMs: roundMs(nodePerformance.now() - totalStart),
+        },
+      };
+    }
+  }
 
   const readFilesStart = nodePerformance.now();
   const fileResults = await Promise.all(
@@ -117,7 +144,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const scriptEntryFiles = await mapScriptEntryFiles(absoluteRoot, scriptAnalysis.fileEntries);
   const analysisMs = nodePerformance.now() - analysisStart;
 
-  return {
+  const resultWithoutRuntime = {
     rootDir: absoluteRoot,
     packagePath: packageMetadata.packagePath,
     files: fileResults,
@@ -129,6 +156,21 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     unusedDependencies,
     unusedDevDependencies,
     misplacedDevDependencies,
+  };
+
+  if (options.cache) {
+    await writeScanCache({
+      packageDir: packageMetadata.packageDir,
+      packagePath: packageMetadata.packagePath,
+      filePaths: dedupedFiles,
+      options,
+      result: resultWithoutRuntime,
+    });
+  }
+
+  return {
+    ...resultWithoutRuntime,
+    cached: false,
     performance: {
       discoverInputsMs: roundMs(discoverInputsMs),
       scriptParseMs: roundMs(scriptParseMs),

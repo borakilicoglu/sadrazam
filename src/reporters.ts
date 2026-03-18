@@ -29,6 +29,7 @@ export interface RenderReportInput {
   reporter: ReporterType;
   debug: boolean;
   performance: boolean;
+  cache: boolean;
   production: boolean;
   strict: boolean;
   include: FindingType[];
@@ -66,6 +67,7 @@ export function renderReport(input: RenderReportInput): string {
         mode: {
           debug: input.debug,
           performance: input.performance,
+          cache: input.cache,
           production: input.production,
           strict: input.strict,
           include: input.include,
@@ -86,6 +88,7 @@ export function renderReport(input: RenderReportInput): string {
             findings: findings.reduce((sum, finding) => sum + finding.items.length, 0),
             scriptCommandPackages: result.scriptCommandPackages,
             scriptEntryFiles: result.scriptEntryFiles,
+            cached: result.cached,
           },
           findings,
           externalImports: result.externalImports,
@@ -163,6 +166,9 @@ export function renderReport(input: RenderReportInput): string {
     lines.push(`Files scanned: ${result.files.length}`);
     lines.push(`External packages used: ${result.externalImports.length}`);
     lines.push(`Findings: ${findingCount}`);
+    if (input.cache) {
+      lines.push(`Cache: ${result.cached ? "hit" : "miss"}`);
+    }
     if (result.scriptCommandPackages.length > 0) {
       lines.push(`Script packages: ${result.scriptCommandPackages.join(", ")}`);
     }
@@ -212,6 +218,7 @@ export function renderReport(input: RenderReportInput): string {
     lines.push(pc.dim(`Include: ${input.include.join(", ") || "-"}`));
     lines.push(pc.dim(`Exclude: ${input.exclude.join(", ") || "-"}`));
     lines.push(pc.dim(`Trace: ${input.trace ?? "-"}`));
+    lines.push(pc.dim(`Cache: ${input.cache ? "enabled" : "disabled"}`));
     lines.push(pc.dim(`Performance: ${input.performance ? "enabled" : "disabled"}`));
     if (input.rulesSummary) {
       lines.push(pc.dim(`Ignore packages: ${input.rulesSummary.ignorePackages.join(", ") || "-"}`));
@@ -245,6 +252,7 @@ function describeMode(input: RenderReportInput): string {
   const enabled = [
     input.production ? "production" : null,
     input.strict ? "strict" : null,
+    input.cache ? "cache" : null,
     input.performance ? "performance" : null,
     input.debug ? "debug" : null,
   ].filter(Boolean);

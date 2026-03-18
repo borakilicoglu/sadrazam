@@ -44,6 +44,7 @@ program
   .option("--strict", "flag devDependencies used in production files")
   .option("--debug", "print resolved debug information")
   .option("--performance", "print performance timing information")
+  .option("--cache", "reuse scan results when source inputs have not changed")
   .option("--trace <package>", "trace where a package is used")
   .option("--ignore-packages <names>", "comma-separated package names to ignore in findings")
   .option("--allow-unused-dependencies <names>", "comma-separated dependency allowlist")
@@ -57,7 +58,7 @@ Examples:
   sadrazam .
   sadrazam . --reporter json
   sadrazam . --trace typescript
-  sadrazam . --performance
+  sadrazam . --cache --performance
   sadrazam . --workspace packages/web
   sadrazam . --production --strict
   AI_PROVIDER=openai AI_TOKEN=... sadrazam . --ai
@@ -90,6 +91,7 @@ Examples:
           const result = await scanProject(workspace.dir, {
             production: Boolean(mergedOptions.production),
             strict: Boolean(mergedOptions.strict),
+            cache: Boolean(mergedOptions.cache),
           });
           const findings = getActiveFindings(result, rules, Boolean(mergedOptions.production));
 
@@ -128,6 +130,7 @@ Examples:
         reporter,
         debug: Boolean(mergedOptions.debug),
         performance: Boolean(mergedOptions.performance),
+        cache: Boolean(mergedOptions.cache),
         production: Boolean(mergedOptions.production),
         strict: Boolean(mergedOptions.strict),
         include,
@@ -234,6 +237,7 @@ interface CliOptions {
   strict: boolean;
   debug: boolean;
   performance: boolean;
+  cache: boolean;
   trace: string | undefined;
   ignorePackages: string | undefined;
   allowUnusedDependencies: string | undefined;
@@ -255,6 +259,7 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
     strict: rawOptions.strict === true ? true : config.strict ?? false,
     debug: rawOptions.debug === true ? true : config.debug ?? false,
     performance: rawOptions.performance === true ? true : config.performance ?? false,
+    cache: rawOptions.cache === true ? true : config.cache ?? false,
     trace: asOptionalString(rawOptions.trace) ?? config.trace,
     ignorePackages: asOptionalString(rawOptions.ignorePackages) ?? config.ignorePackages?.join(","),
     allowUnusedDependencies:

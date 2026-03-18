@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -8,10 +10,14 @@ const cliPath = path.join(rootDir, "dist", "index.js");
 
 function runJsonReport(fixtureName: string, extraArgs: string[] = []) {
   const fixtureDir = path.join(rootDir, "test", "fixtures", fixtureName);
+  return runJsonReportForDir(fixtureDir, extraArgs);
+}
+
+function runJsonReportForDir(targetDir: string, extraArgs: string[] = []) {
   let stdout = "";
 
   try {
-    stdout = execFileSync("node", [cliPath, fixtureDir, "--reporter", "json", ...extraArgs], {
+    stdout = execFileSync("node", [cliPath, targetDir, "--reporter", "json", ...extraArgs], {
       cwd: rootDir,
       encoding: "utf8",
     });
@@ -51,6 +57,24 @@ describe("CLI", () => {
     expect(report.performance.workspaceScanMs).toBeGreaterThanOrEqual(0);
     expect(workspace.performance.totalMs).toBeGreaterThanOrEqual(0);
     expect(workspace.performance.readFilesMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("reuses cached scan results when inputs are unchanged", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "sadrazam-cache-"));
+    const tempProject = path.join(tempRoot, "project");
+
+    cpSync(path.join(rootDir, "test", "fixtures", "config-project"), tempProject, { recursive: true });
+
+    try {
+      const first = runJsonReportForDir(tempProject, ["--cache", "--performance"]);
+      const second = runJsonReportForDir(tempProject, ["--cache", "--performance"]);
+
+      expect(first.mode.cache).toBe(true);
+      expect(first.workspaces[0].summary.cached).toBe(false);
+      expect(second.workspaces[0].summary.cached).toBe(true);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("discovers pnpm workspaces and respects local workspace dependencies", () => {
