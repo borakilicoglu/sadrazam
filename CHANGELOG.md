@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.1.3
+
+### Added
+- JSDoc export ignore tags for `unused-exports` findings
+- Config support for `jsdocTags.ignoreExports`
+
+### Changed
+- Ignore explicitly tagged exports before reporting unused export findings
+
 ## v0.1.2
 
 ### Added
