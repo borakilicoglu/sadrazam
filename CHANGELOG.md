@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.1.0-beta.4
+
+### Added
+- Source scanning for Svelte, Vue, MDX, and Astro files
+
+### Changed
+- Expanded fixture and smoke coverage for framework-style source files
+
 ## v0.1.0-beta.3
 
 ### Added
