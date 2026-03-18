@@ -17,6 +17,8 @@ Sadrazam scans your project to find unused packages, flag dependency hygiene iss
 
 Current status:
 
+See the full feature matrix: https://borakilicoglu.github.io/sadrazam/features
+
 - unused `dependencies` and `devDependencies`
 - missing package declarations
 - unused source file detection

@@ -21,6 +21,7 @@ export default defineConfig({
           { text: "Getting Started", link: "/getting-started" },
           { text: "CLI Usage", link: "/usage" },
           { text: "Config", link: "/config" },
+          { text: "Features", link: "/features" },
           { text: "Findings", link: "/findings" },
           { text: "AI Mode", link: "/ai-mode" },
           { text: "CI & Releases", link: "/ci" },

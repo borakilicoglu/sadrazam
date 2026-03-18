@@ -92,6 +92,7 @@ AI_PROVIDER=openai AI_TOKEN=your_token sadrazam . --ai
 - [Getting Started](/getting-started)
 - [CLI Usage](/usage)
 - [Config](/config)
+- [Features](/features)
 - [Findings](/findings)
 - [AI Mode](/ai-mode)
 - [CI and Releases](/ci)
