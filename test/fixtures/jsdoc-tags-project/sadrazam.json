@@ -1,0 +1,7 @@
+{
+  "jsdocTags": {
+    "ignoreExports": [
+      "sadrazam-ignore"
+    ]
+  }
+}

@@ -272,6 +272,21 @@ describe("CLI", () => {
     expect(report.workspaces[0].unusedExports).toEqual(["src/lib.ts: unusedHelper"]);
   });
 
+
+  it("ignores tagged exports in unused export findings", () => {
+    const report = runJsonReport("jsdoc-tags-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-exports",
+        title: "Unused exports",
+        items: ["src/lib.ts: unusedHelper"],
+      },
+    ]);
+    expect(report.workspaces[0].unusedExports).toEqual(["src/lib.ts: unusedHelper"]);
+  });
+
   it("traces export usage for reachable local modules", () => {
     const report = runJsonReport("unused-exports-project", ["--trace-export", "src/lib.ts:usedHelper"]);
 

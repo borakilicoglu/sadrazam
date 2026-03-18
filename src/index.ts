@@ -312,6 +312,9 @@ async function collectWorkspaceReports(
         strict: Boolean(options.strict),
         cache: Boolean(options.cache || options.watch),
         ...(config.inputs ? { pluginInputs: config.inputs } : {}),
+        ...(config.jsdocTags?.ignoreExports
+          ? { jsdocIgnoreExportTags: config.jsdocTags.ignoreExports }
+          : {}),
       });
       const findings = getActiveFindings(result, rules, Boolean(options.production));
 

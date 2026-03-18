@@ -8,9 +8,16 @@ import { findSourceFiles } from "./fileFinder.js";
 import { parseImports } from "./importParser.js";
 import { readPackageMetadata } from "./packageReader.js";
 import { analyzePluginInputs, analyzePlugins, type PluginInputsConfig } from "./plugins.js";
-import { parseExportedNames, parseLocalReferences, type LocalReference } from "./symbolParser.js";
+import {
+  parseExportedNames,
+  parseIgnoredExportNames,
+  parseLocalReferences,
+  type LocalReference,
+} from "./symbolParser.js";
 import { parsePackageScripts } from "./scriptParser.js";
 import { mapToSourcePath } from "./sourceMapper.js";
+
+const DEFAULT_JSDOC_IGNORE_EXPORT_TAGS = ["sadrazam-ignore", "sadrazam-keep"];
 
 const RESOLVABLE_EXTENSIONS = [
   ".ts",
@@ -33,6 +40,7 @@ export interface FileScanResult {
   imports: string[];
   localReferences: LocalReference[];
   exportedNames: string[];
+  ignoredExportNames: string[];
   isProduction: boolean;
 }
 
@@ -79,6 +87,7 @@ export interface ScanOptions {
   strict?: boolean;
   cache?: boolean;
   pluginInputs?: PluginInputsConfig;
+  jsdocIgnoreExportTags?: string[];
 }
 
 export async function scanProject(rootDir: string, options: ScanOptions = {}): Promise<ScanResult> {
@@ -144,6 +153,10 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
       const imports = parseImports(source).map((entry) => entry.specifier);
       const localReferences = parseLocalReferences(source);
       const exportedNames = parseExportedNames(source);
+      const ignoredExportNames = parseIgnoredExportNames(
+        source,
+        options.jsdocIgnoreExportTags ?? DEFAULT_JSDOC_IGNORE_EXPORT_TAGS,
+      );
       const relativePath = path.relative(absoluteRoot, filePath) || path.basename(filePath);
 
       return {
@@ -152,6 +165,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
         imports,
         localReferences,
         exportedNames,
+        ignoredExportNames,
         isProduction: isProductionFilePath(absoluteRoot, filePath),
       };
     }),
@@ -462,6 +476,9 @@ function getUnusedExports(
   const exportedNamesByFile = new Map(
     files.map((file) => [file.filePath, new Set(file.exportedNames)] as const),
   );
+  const ignoredExportNamesByFile = new Map(
+    files.map((file) => [file.filePath, new Set(file.ignoredExportNames)] as const),
+  );
   const usedExports = new Map<string, Set<string>>();
 
   for (const entryFile of entryFiles) {
@@ -499,9 +516,10 @@ function getUnusedExports(
     .filter((file) => reachableFiles.has(file.filePath) && file.exportedNames.length > 0)
     .flatMap((file) => {
       const used = usedExports.get(file.filePath) ?? new Set<string>();
+      const ignored = ignoredExportNamesByFile.get(file.filePath) ?? new Set<string>();
 
       return file.exportedNames
-        .filter((name) => !used.has(name))
+        .filter((name) => !used.has(name) && !ignored.has(name))
         .map((name) => `${file.relativePath}: ${name}`);
     })
     .sort();

@@ -31,6 +31,9 @@ export interface SadrazamConfig {
     filePatterns?: string[];
     exportPatterns?: string[];
   };
+  jsdocTags?: {
+    ignoreExports?: string[];
+  };
   ai?: {
     provider?: string;
     model?: string;

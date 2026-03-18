@@ -139,6 +139,16 @@ const scenarios = [
       assert.deepEqual(workspace.unusedExports, ["src/lib.ts: unusedHelper"]);
     },
   },
+  {
+    name: "jsdoc-tags-project",
+    cwd: path.join(rootDir, "test", "fixtures", "jsdoc-tags-project"),
+    args: ["--reporter", "json"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.equal(workspace.summary.findings, 1);
+      assert.deepEqual(workspace.unusedExports, ["src/lib.ts: unusedHelper"]);
+    },
+  },
 ];
 
 for (const scenario of scenarios) {

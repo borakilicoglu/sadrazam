@@ -19,6 +19,10 @@ const EXPORT_DECLARATION_RES = [
 const EXPORT_LIST_RE = /\bexport\s*{([^}]+)}(?!\s*from)/g;
 const EXPORT_TYPE_LIST_RE = /\bexport\s+type\s*{([^}]+)}(?!\s*from)/g;
 
+const JSDOC_EXPORT_DECLARATION_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s+(?:declare\s+)?(?:const|let|var|class|interface|type|enum|async\s+function|function)\s+([A-Za-z_$][\w$]*)/g;
+const JSDOC_EXPORT_LIST_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s*(?:type\s*)?{([^}]+)}(?!\s*from)/g;
+const JSDOC_EXPORT_DEFAULT_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s+default\b/g;
+
 export function parseLocalReferences(source: string): LocalReference[] {
   const references: LocalReference[] = [];
 
@@ -73,6 +77,50 @@ export function parseLocalReferences(source: string): LocalReference[] {
   }
 
   return dedupeReferences(references);
+}
+
+export function parseIgnoredExportNames(source: string, tagNames: string[]): string[] {
+  if (tagNames.length === 0) {
+    return [];
+  }
+
+  const normalizedTags = tagNames.map((tagName) => normalizeTag(tagName)).filter(Boolean);
+
+  if (normalizedTags.length === 0) {
+    return [];
+  }
+
+  const ignored = new Set<string>();
+
+  for (const match of source.matchAll(JSDOC_EXPORT_DECLARATION_RE)) {
+    if (!hasAnyJsDocTag(match[1] ?? "", normalizedTags)) {
+      continue;
+    }
+
+    const exportName = match[2]?.trim();
+
+    if (exportName) {
+      ignored.add(exportName);
+    }
+  }
+
+  for (const match of source.matchAll(JSDOC_EXPORT_LIST_RE)) {
+    if (!hasAnyJsDocTag(match[1] ?? "", normalizedTags)) {
+      continue;
+    }
+
+    for (const exportName of parseListedNames(match[2] ?? "", "exported")) {
+      ignored.add(exportName);
+    }
+  }
+
+  for (const match of source.matchAll(JSDOC_EXPORT_DEFAULT_RE)) {
+    if (hasAnyJsDocTag(match[1] ?? "", normalizedTags)) {
+      ignored.add("default");
+    }
+  }
+
+  return [...ignored].sort();
 }
 
 export function parseExportedNames(source: string): string[] {
@@ -176,4 +224,12 @@ function dedupeReferences(references: LocalReference[]): LocalReference[] {
     seen.add(key);
     return true;
   });
+}
+
+function hasAnyJsDocTag(comment: string, tagNames: string[]): boolean {
+  return tagNames.some((tagName) => comment.includes(`@${tagName}`));
+}
+
+function normalizeTag(tagName: string): string {
+  return tagName.trim().replace(/^@/, "");
 }
