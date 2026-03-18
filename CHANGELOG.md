@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.1.1
+
+### Added
+- Export trace support with `--trace-export` for reachable local modules
+- Memory reporting with `--memory` in text and JSON reporters
+- Watch mode with `--watch` for live reruns on project changes
+
+### Changed
+- Watch mode now reuses scan caching internally and disables repeated AI summary calls
+- Added CLI and smoke coverage for export trace, memory reporting, and watch behavior
+
 ## v0.1.0
 
 ### Added
