@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## v0.1.0
+
+### Added
+- Stable release for dependency, file, and export hygiene analysis
+- Unused file detection based on reachable local source graphs
+- Unused export detection for reachable local modules
+- Cache and performance reporting modes
+- Framework source scanning for Svelte, Vue, MDX, and Astro
+
+### Changed
+- Improved monorepo and real-world scan behavior with lower false-positive noise
+- Expanded docs, smoke coverage, and release workflows for stable usage
+
 ## v0.1.0-beta.6
 
 ### Added
