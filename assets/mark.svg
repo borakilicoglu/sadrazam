@@ -4,7 +4,7 @@
   <path
     d="M346 148H214c-42 0-76 29-76 67 0 38 28 58 72 68l52 11c26 5 40 13 40 28 0 17-17 30-43 30H130"
     fill="none"
-    stroke="#0f766e"
+    stroke="#6f78d8"
     stroke-linecap="round"
     stroke-linejoin="round"
     stroke-width="48"
@@ -12,7 +12,7 @@
   <path
     d="M166 364h132c42 0 76-29 76-67 0-38-28-58-72-68l-52-11c-26-5-40-13-40-28 0-17 17-30 43-30h129"
     fill="none"
-    stroke="#0f766e"
+    stroke="#6f78d8"
     stroke-linecap="round"
     stroke-linejoin="round"
     stroke-width="48"
