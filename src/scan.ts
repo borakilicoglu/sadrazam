@@ -74,13 +74,18 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const missingPackages = externalImports.filter(
     (name) => !packageMetadata.allDependencies.has(name),
   );
+  const effectivelyUsedPackages = getEffectivelyUsedPackages(
+    externalImports,
+    fileResults,
+    packageMetadata.devDependencies,
+  );
   const unusedDependencies = getUnusedDeclaredPackages(
     packageMetadata.dependencies,
-    externalImports,
+    effectivelyUsedPackages,
   );
   const unusedDevDependencies = getUnusedDeclaredPackages(
     packageMetadata.devDependencies,
-    externalImports,
+    effectivelyUsedPackages,
   );
   const misplacedDevDependencies = options.strict
     ? getMisplacedDevDependencies(fileResults, packageMetadata.devDependencies)
@@ -203,6 +208,38 @@ async function mapScriptEntryFiles(rootDir: string, fileEntries: string[]): Prom
   );
 
   return [...new Set(mappedEntries)].sort();
+}
+
+function getEffectivelyUsedPackages(
+  externalImports: string[],
+  files: FileScanResult[],
+  devDependencies: Set<string>,
+): string[] {
+  const usedPackages = new Set(externalImports);
+
+  if (shouldTreatNodeTypesAsUsed(files, devDependencies)) {
+    usedPackages.add("@types/node");
+  }
+
+  return [...usedPackages].sort();
+}
+
+function shouldTreatNodeTypesAsUsed(
+  files: FileScanResult[],
+  devDependencies: Set<string>,
+): boolean {
+  if (!devDependencies.has("@types/node")) {
+    return false;
+  }
+
+  return files.some((file) =>
+    isTypeScriptFile(file.filePath)
+    && file.imports.some((specifier) => isBuiltinPackage(getPackageName(specifier))),
+  );
+}
+
+function isTypeScriptFile(filePath: string): boolean {
+  return /\.(ts|tsx|cts|mts)$/i.test(filePath);
 }
 
 function getUnusedDeclaredPackages(

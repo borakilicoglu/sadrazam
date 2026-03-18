@@ -16,6 +16,16 @@ const scenarios = [
     },
   },
   {
+    name: "ts-node-types-project",
+    cwd: path.join(rootDir, "test", "fixtures", "ts-node-types-project"),
+    args: ["--reporter", "json"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.equal(workspace.summary.findings, 0);
+      assert.deepEqual(workspace.externalImports, ["commander", "typescript"]);
+    },
+  },
+  {
     name: "cjs-project",
     cwd: path.join(rootDir, "test", "fixtures", "cjs-project"),
     args: ["--reporter", "json"],

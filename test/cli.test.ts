@@ -43,6 +43,14 @@ describe("CLI", () => {
     expect(report.workspaces.every((workspace: { findings: unknown[] }) => workspace.findings.length === 0)).toBe(true);
   });
 
+  it("treats @types/node as used when TypeScript files import Node built-ins", () => {
+    const report = runJsonReport("ts-node-types-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.findings).toEqual([]);
+    expect(workspace.externalImports).toEqual(["commander", "typescript"]);
+  });
+
   it("filters built-in modules and maps known script binaries to package names", () => {
     const report = runJsonReport("cjs-project");
     const workspace = report.workspaces[0];

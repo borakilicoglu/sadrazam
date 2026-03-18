@@ -21,7 +21,7 @@
 
 ## Remaining Gaps
 
-- `@types/node` can still appear as an unused `devDependency` in TypeScript repositories that rely on it through config or ambient types rather than direct imports.
+- `@types/node` is now treated as used when TypeScript files import Node built-ins, but broader ambient-type detection may still need future refinement.
 - Example-collection repositories that intentionally keep real code only in nested packages may still need explicit workspace or config guidance, because the root package may have very few source files of its own.
 
 ## Beta Readiness Impact
@@ -33,4 +33,4 @@ This validation round removed the largest blockers from the first real-world rep
 - built-in module filtering
 - script binary alias handling
 
-The main follow-up item before beta is type-aware handling for packages like `@types/node`.
+The main remaining beta-level follow-up is broader ambient type awareness beyond direct Node built-in import signals.
