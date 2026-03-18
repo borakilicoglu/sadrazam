@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.1.5
+
+### Added
+- `--format` support for package.json files modified by `--fix`
+
+### Changed
+- Normalize package.json key ordering and section sorting after safe auto-fixes
+- Report formatted files in text and JSON auto-fix output
+
 ## v0.1.4
 
 ### Added
