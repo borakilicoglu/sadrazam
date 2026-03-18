@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.1.0-beta.3
+
+### Added
+- Workspace scan result caching with `--cache` and config support
+
+### Changed
+- Added cache hit or miss visibility to text and JSON reporters
+
 ## v0.1.0-beta.2
 
 ### Added
