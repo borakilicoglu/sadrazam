@@ -6,6 +6,7 @@
   <a href="https://www.npmjs.com/package/sadrazam"><img src="https://img.shields.io/npm/v/sadrazam" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/sadrazam"><img src="https://img.shields.io/npm/dt/sadrazam" alt="npm total downloads" /></a>
   <a href="https://packagephobia.com/result?p=sadrazam"><img src="https://packagephobia.com/badge?p=sadrazam" alt="install size" /></a>
+  <a href="https://github.com/borakilicoglu/sadrazam/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/sadrazam" alt="license" /></a>
 </p>
 
 Sadrazam is a dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.
