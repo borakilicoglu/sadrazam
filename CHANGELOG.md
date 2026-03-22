@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.1.6
+
+### Added
+- `markdown` reporter for human-readable markdown output
+- `sarif` reporter for CI and code scanning integrations
+
+### Changed
+- Expanded CLI test coverage for the new reporter formats
+- Refreshed README and docs feature overview pages
+
 ## v0.1.5
 
 ### Added
