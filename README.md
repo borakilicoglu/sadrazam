@@ -9,7 +9,7 @@
   <a href="https://packagephobia.com/result?p=sadrazam"><img src="https://packagephobia.com/badge?p=sadrazam" alt="install size" /></a>
 </p>
 
-<p>Sadrazam is a dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.</p>
+<p>Sadrazam is an npm package and CLI for dependency analysis in JavaScript and TypeScript projects, with optional AI-powered insights.</p>
 
 ## Overview
 
