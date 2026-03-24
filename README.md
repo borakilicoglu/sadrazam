@@ -11,12 +11,12 @@
 
 <p>Sadrazam is a dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.</p>
 
-Website: https://borakilicoglu.github.io/sadrazam/
-GitHub repo: borakilicoglu/sadrazam
-Official npm package: sadrazam
-Docs: https://borakilicoglu.github.io/sadrazam/features
-Contributing: https://github.com/borakilicoglu/sadrazam/blob/main/CONTRIBUTING.md
-Releases: https://github.com/borakilicoglu/sadrazam/releases
+- Website: https://borakilicoglu.github.io/sadrazam/
+- GitHub repo: https://github.com/borakilicoglu/sadrazam
+- Official npm package: https://www.npmjs.com/package/sadrazam
+- Docs: https://borakilicoglu.github.io/sadrazam/features
+- Contributing: https://github.com/borakilicoglu/sadrazam/blob/main/CONTRIBUTING.md
+- Releases: https://github.com/borakilicoglu/sadrazam/releases
 
 ## Overview
 
