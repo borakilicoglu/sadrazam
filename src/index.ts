@@ -55,26 +55,26 @@ const SUPPORTED_FINDING_TYPES: FindingType[] = [
 
 program
   .name("sadrazam")
-  .description("Analyze dependency usage, detect hygiene issues, and trace why packages are used.")
+  .description("Analyze dependency usage, file hygiene, and export reachability in JavaScript and TypeScript projects.")
   .argument("[target]", "directory to scan", ".")
   .option("--ai", "enable AI-assisted analysis")
   .option("--provider <provider>", `AI provider (${SUPPORTED_AI_PROVIDERS.join(", ")})`)
   .option("--model <model>", "AI model name")
-  .option("--reporter <type>", `reporter (${SUPPORTED_REPORTERS.join(", ")})`)
+  .option("--reporter <type>", `output reporter (${SUPPORTED_REPORTERS.join(", ")})`)
   .option("--include <types>", "comma-separated finding types to include")
   .option("--exclude <types>", "comma-separated finding types to exclude")
   .option("--workspace <names>", "comma-separated workspace filters")
   .option("--production", "scan production files only")
   .option("--strict", "flag devDependencies used in production files")
   .option("--debug", "print resolved debug information")
-  .option("--performance", "print performance timing information")
-  .option("--memory", "print memory usage information")
-  .option("--cache", "reuse scan results when source inputs have not changed")
-  .option("--fix", "auto-fix safe package.json issues")
-  .option("--format", "format files modified by --fix")
-  .option("--watch", "re-run analysis when project files change")
-  .option("--trace <package>", "trace where a package is used")
-  .option("--trace-export <target>", "trace where an export is used (relativePath:exportName)")
+  .option("--performance", "print timing information for workspace and total scans")
+  .option("--memory", "print peak heap and RSS usage information")
+  .option("--cache", "reuse scan results when inputs have not changed")
+  .option("--fix", "auto-fix safe package.json dependency issues")
+  .option("--format", "normalize files modified by --fix")
+  .option("--watch", "re-run analysis when relevant project files change")
+  .option("--trace <package>", "trace where a package is treated as used")
+  .option("--trace-export <target>", "trace where an export is treated as used (relativePath:exportName)")
   .option("--ignore-packages <names>", "comma-separated package names to ignore in findings")
   .option("--allow-unused-dependencies <names>", "comma-separated dependency allowlist")
   .option("--allow-unused-dev-dependencies <names>", "comma-separated devDependency allowlist")
@@ -86,13 +86,15 @@ program
 Examples:
   sadrazam .
   sadrazam . --reporter json
+  sadrazam . --reporter markdown
+  sadrazam . --reporter sarif
   sadrazam . --trace typescript
   sadrazam . --trace-export src/lib.ts:usedHelper
   sadrazam . --cache --performance
-  sadrazam . --fix
-  sadrazam . --fix --format
   sadrazam . --memory
   sadrazam . --watch
+  sadrazam . --fix
+  sadrazam . --fix --format
   sadrazam . --workspace packages/web
   sadrazam . --production --strict
   AI_PROVIDER=openai AI_TOKEN=... sadrazam . --ai
