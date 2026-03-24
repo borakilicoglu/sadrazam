@@ -9,8 +9,6 @@
   <a href="https://github.com/borakilicoglu/sadrazam/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/sadrazam" alt="license" /></a>
 </p>
 
-<p align="center"><strong>Sadrazam</strong></p>
-
 <p align="center" width="70%">Sadrazam is a dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.</p>
 
 ## Overview
