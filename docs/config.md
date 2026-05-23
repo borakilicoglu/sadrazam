@@ -7,6 +7,12 @@ Sadrazam loads config from either:
 
 ## Example
 
+Create a config file interactively:
+
+```bash
+sadrazam init
+```
+
 ```json
 {
   "reporter": "json",

@@ -23,9 +23,11 @@ sadrazam .
 Useful first commands:
 
 ```bash
+sadrazam init
 sadrazam . --reporter json
 sadrazam . --reporter toon
 sadrazam . --trace typescript
+sadrazam . --explain unused-files
 sadrazam . --production --strict
 ```
 

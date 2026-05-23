@@ -5,13 +5,11 @@ import path from "node:path";
 
 import { readScanCache, writeScanCache } from "./cache.js";
 import { findSourceFiles } from "./fileFinder.js";
-import { parseImports } from "./importParser.js";
+import { loadAliasEntries, resolveAlias, resolveAliasCandidates, type AliasEntry } from "./aliasResolver.js";
 import { readPackageMetadata } from "./packageReader.js";
 import { analyzePluginInputs, analyzePlugins, type PluginInputsConfig } from "./plugins.js";
 import {
-  parseExportedNames,
-  parseIgnoredExportNames,
-  parseLocalReferences,
+  parseFileSymbols,
   type LocalReference,
 } from "./symbolParser.js";
 import { parsePackageScripts } from "./scriptParser.js";
@@ -95,9 +93,10 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const absoluteRoot = path.resolve(rootDir);
 
   const discoverInputsStart = nodePerformance.now();
-  const [files, packageMetadata] = await Promise.all([
+  const [files, packageMetadata, aliases] = await Promise.all([
     findSourceFiles(absoluteRoot),
     readPackageMetadata(absoluteRoot),
+    loadAliasEntries(absoluteRoot),
   ]);
   const discoverInputsMs = nodePerformance.now() - discoverInputsStart;
 
@@ -150,13 +149,11 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const fileResults = await Promise.all(
     dedupedFiles.map(async (filePath) => {
       const source = await readFile(filePath, "utf8");
-      const imports = parseImports(source).map((entry) => entry.specifier);
-      const localReferences = parseLocalReferences(source);
-      const exportedNames = parseExportedNames(source);
-      const ignoredExportNames = parseIgnoredExportNames(
+      const { allSpecifiers, localReferences, exportedNames, ignoredExportNames } = parseFileSymbols(
         source,
         options.jsdocIgnoreExportTags ?? DEFAULT_JSDOC_IGNORE_EXPORT_TAGS,
       );
+      const imports = allSpecifiers;
       const relativePath = path.relative(absoluteRoot, filePath) || path.basename(filePath);
 
       return {
@@ -183,13 +180,14 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     pluginAnalysis.commandUsage,
     inputAnalysis.commandUsage,
   );
-  const externalImports = collectExternalImports(fileResults, commandPackages);
-  const packageTraces = collectPackageTraces(fileResults, commandUsage);
+  const externalImports = collectExternalImports(fileResults, commandPackages, aliases);
+  const packageTraces = collectPackageTraces(fileResults, commandUsage, aliases);
   const exportTraces = collectExportTraces(
     absoluteRoot,
     fileResults,
     packageMetadata.entrySpecifiers,
     mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
+    aliases,
   );
   const missingPackages = externalImports.filter(
     (name) => !packageMetadata.allDependencies.has(name),
@@ -208,7 +206,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     effectivelyUsedPackages,
   );
   const misplacedDevDependencies = options.strict
-    ? getMisplacedDevDependencies(fileResults, packageMetadata.devDependencies)
+    ? getMisplacedDevDependencies(fileResults, packageMetadata.devDependencies, aliases)
     : [];
   const scriptEntryFiles = await mapScriptEntryFiles(
     absoluteRoot,
@@ -219,12 +217,14 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     fileResults,
     packageMetadata.entrySpecifiers,
     mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
+    aliases,
   );
   const unusedExports = getUnusedExports(
     absoluteRoot,
     fileResults,
     packageMetadata.entrySpecifiers,
     mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
+    aliases,
   );
   const analysisMs = nodePerformance.now() - analysisStart;
 
@@ -299,12 +299,12 @@ function mergeCommandUsage(
   );
 }
 
-function collectExternalImports(files: FileScanResult[], scriptPackages: string[]): string[] {
+function collectExternalImports(files: FileScanResult[], scriptPackages: string[], aliases: AliasEntry[]): string[] {
   const packages = new Set<string>();
 
   for (const file of files) {
     for (const specifier of file.imports) {
-      if (!isExternalSpecifier(specifier)) {
+      if (!isExternalSpecifier(specifier, aliases)) {
         continue;
       }
 
@@ -330,9 +330,10 @@ function collectExportTraces(
   files: FileScanResult[],
   packageEntries: string[],
   scriptEntryFiles: string[],
+  aliases: AliasEntry[],
 ): Record<string, string[]> {
   const filePathSet = new Set(files.map((file) => file.filePath));
-  const { reachableFiles } = getReachableFilePaths(rootDir, files, packageEntries, scriptEntryFiles);
+  const { reachableFiles } = getReachableFilePaths(rootDir, files, packageEntries, scriptEntryFiles, aliases);
   const relativePaths = new Map(files.map((file) => [file.filePath, file.relativePath] as const));
   const traces = new Map<string, Set<string>>();
 
@@ -342,11 +343,11 @@ function collectExportTraces(
     }
 
     for (const reference of file.localReferences) {
-      if (!isLocalSpecifier(reference.specifier)) {
+      if (!isLocalSpecifier(reference.specifier, aliases)) {
         continue;
       }
 
-      const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet);
+      const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
 
       if (!target || !reachableFiles.has(target)) {
         continue;
@@ -394,12 +395,13 @@ function addExportTrace(
 function collectPackageTraces(
   files: FileScanResult[],
   scriptUsage: Record<string, string[]>,
+  aliases: AliasEntry[],
 ): Record<string, string[]> {
   const traces = new Map<string, Set<string>>();
 
   for (const file of files) {
     for (const specifier of file.imports) {
-      if (!isExternalSpecifier(specifier)) {
+      if (!isExternalSpecifier(specifier, aliases)) {
         continue;
       }
 
@@ -441,8 +443,9 @@ function getUnusedFiles(
   files: FileScanResult[],
   packageEntries: string[],
   scriptEntryFiles: string[],
+  aliases: AliasEntry[],
 ): string[] {
-  const { reachableFiles } = getReachableFilePaths(rootDir, files, packageEntries, scriptEntryFiles);
+  const { reachableFiles } = getReachableFilePaths(rootDir, files, packageEntries, scriptEntryFiles, aliases);
 
   if (reachableFiles.size === 0) {
     return [];
@@ -460,6 +463,7 @@ function getUnusedExports(
   files: FileScanResult[],
   packageEntries: string[],
   scriptEntryFiles: string[],
+  aliases: AliasEntry[],
 ): string[] {
   const filePathSet = new Set(files.map((file) => file.filePath));
   const { entryFiles, reachableFiles } = getReachableFilePaths(
@@ -467,6 +471,7 @@ function getUnusedExports(
     files,
     packageEntries,
     scriptEntryFiles,
+    aliases,
   );
 
   if (reachableFiles.size === 0) {
@@ -491,11 +496,11 @@ function getUnusedExports(
     }
 
     for (const reference of file.localReferences) {
-      if (!isLocalSpecifier(reference.specifier)) {
+      if (!isLocalSpecifier(reference.specifier, aliases)) {
         continue;
       }
 
-      const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet);
+      const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
 
       if (!target) {
         continue;
@@ -530,6 +535,7 @@ function getReachableFilePaths(
   files: FileScanResult[],
   packageEntries: string[],
   scriptEntryFiles: string[],
+  aliases: AliasEntry[],
 ): { entryFiles: string[]; reachableFiles: Set<string> } {
   const filePathSet = new Set(files.map((file) => file.filePath));
   const entryFiles = resolveEntryFiles(rootDir, files, packageEntries, scriptEntryFiles, filePathSet);
@@ -538,7 +544,7 @@ function getReachableFilePaths(
     return { entryFiles: [], reachableFiles: new Set<string>() };
   }
 
-  const graph = buildLocalImportGraph(files, filePathSet);
+  const graph = buildLocalImportGraph(files, filePathSet, aliases);
   const visited = new Set<string>();
   const stack = [...entryFiles];
 
@@ -564,6 +570,7 @@ function getReachableFilePaths(
 function buildLocalImportGraph(
   files: FileScanResult[],
   filePathSet: Set<string>,
+  aliases: AliasEntry[],
 ): Map<string, string[]> {
   const graph = new Map<string, string[]>();
 
@@ -571,11 +578,11 @@ function buildLocalImportGraph(
     const localImports = new Set<string>();
 
     for (const reference of file.localReferences) {
-      if (!isLocalSpecifier(reference.specifier)) {
+      if (!isLocalSpecifier(reference.specifier, aliases)) {
         continue;
       }
 
-      const resolved = resolveLocalImport(file.filePath, reference.specifier, filePathSet);
+      const resolved = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
 
       if (resolved) {
         localImports.add(resolved);
@@ -666,7 +673,15 @@ function resolveLocalImport(
   fromFilePath: string,
   specifier: string,
   filePathSet: Set<string>,
+  aliases: AliasEntry[] = [],
 ): string | null {
+  for (const aliasResolved of resolveAliasCandidates(specifier, aliases)) {
+    const resolved = resolveFileCandidate(aliasResolved, filePathSet);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
   const target = path.resolve(path.dirname(fromFilePath), specifier);
   return resolveFileCandidate(target, filePathSet);
 }
@@ -688,12 +703,19 @@ function resolveFileCandidate(target: string, filePathSet: Set<string>): string 
   return null;
 }
 
-function isExternalSpecifier(specifier: string): boolean {
-  return !specifier.startsWith(".") && !path.isAbsolute(specifier);
+function isExternalSpecifier(specifier: string, aliases: AliasEntry[] = []): boolean {
+  if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+    return false;
+  }
+  // If it resolves via an alias, it's local — not an external package
+  return resolveAlias(specifier, aliases) === null;
 }
 
-function isLocalSpecifier(specifier: string): boolean {
-  return specifier.startsWith(".") || path.isAbsolute(specifier);
+function isLocalSpecifier(specifier: string, aliases: AliasEntry[] = []): boolean {
+  if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+    return true;
+  }
+  return resolveAlias(specifier, aliases) !== null;
 }
 
 function getPackageName(specifier: string): string {
@@ -757,11 +779,7 @@ function isTypeScriptFile(filePath: string): boolean {
   return /\.(ts|tsx|cts|mts)$/i.test(filePath);
 }
 function shouldIgnoreUnusedFile(relativePath: string): boolean {
-  return /(\.|\/)(test|spec)\.[^.]+$/i.test(relativePath)
-    || /(^|\/)__tests__(\/|$)/i.test(relativePath)
-    || /(^|\/)stories\//i.test(relativePath)
-    || /\.stories\.[^.]+$/i.test(relativePath)
-    || /(^|\/)(vitest|jest|tsdown|vite|webpack|rollup|eslint|prettier|biome)\.config\.[^.]+$/i.test(relativePath);
+  return isNonProductionPath(relativePath);
 }
 
 
@@ -779,6 +797,7 @@ function getUnusedDeclaredPackages(
 function getMisplacedDevDependencies(
   files: FileScanResult[],
   devDependencies: Set<string>,
+  aliases: AliasEntry[],
 ): string[] {
   const misplaced = new Set<string>();
 
@@ -788,7 +807,7 @@ function getMisplacedDevDependencies(
     }
 
     for (const specifier of file.imports) {
-      if (!isExternalSpecifier(specifier)) {
+      if (!isExternalSpecifier(specifier, aliases)) {
         continue;
       }
 
@@ -806,15 +825,19 @@ function getMisplacedDevDependencies(
 function isProductionFilePath(rootDir: string, filePath: string): boolean {
   const relativePath = path.relative(rootDir, filePath);
   const normalizedPath = relativePath.split(path.sep).join("/");
+  return !isNonProductionPath(normalizedPath);
+}
 
-  return !(
-    normalizedPath.includes("/__tests__/") ||
-    normalizedPath.includes("/__mocks__/") ||
-    normalizedPath.includes("/fixtures/") ||
-    normalizedPath.includes("/test-utils/") ||
-    /\.test\.[^.]+$/i.test(normalizedPath) ||
-    /\.spec\.[^.]+$/i.test(normalizedPath) ||
-    /\.stories\.[^.]+$/i.test(normalizedPath)
+function isNonProductionPath(relativePath: string): boolean {
+  return (
+    /(\.|\/)(test|spec)\.[^.]+$/i.test(relativePath) ||
+    /(^|\/)__tests__(\/|$)/i.test(relativePath) ||
+    /(^|\/)__mocks__(\/|$)/i.test(relativePath) ||
+    /(^|\/)fixtures(\/|$)/i.test(relativePath) ||
+    /(^|\/)test-utils(\/|$)/i.test(relativePath) ||
+    /(^|\/)stories\//i.test(relativePath) ||
+    /\.stories\.[^.]+$/i.test(relativePath) ||
+    /(^|\/)(vitest|jest|tsdown|vite|webpack|rollup|eslint|prettier|biome)\.config\.[^.]+$/i.test(relativePath)
   );
 }
 

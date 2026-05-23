@@ -4,9 +4,22 @@ export interface LocalReference {
   usesAllExports: boolean;
 }
 
+export interface FileSymbols {
+  /** All import specifiers (external + local), deduplicated. */
+  allSpecifiers: string[];
+  /** Local references with named import tracking (for unused-export analysis). */
+  localReferences: LocalReference[];
+  /** Exported names from this file. */
+  exportedNames: string[];
+  /** Exports tagged with a JSDoc ignore tag. */
+  ignoredExportNames: string[];
+}
+
 const IMPORT_CLAUSE_RE = /\bimport\s+([\s\S]*?)\s+from\s+["'`]([^"'`]+)["'`]/g;
+const IMPORT_SIDE_EFFECT_RE = /\bimport\s+["'`]([^"'`]+)["'`]/g;
 const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
 const REQUIRE_RE = /\brequire\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+const REQUIRE_RESOLVE_RE = /\brequire\.resolve\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
 const IMPORT_EQUALS_RE = /\bimport\s+[\w*\s{},]+\s*=\s*require\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
 const EXPORT_FROM_RE = /\bexport\s+{([^}]+)}\s+from\s+["'`]([^"'`]+)["'`]/g;
 const EXPORT_ALL_FROM_RE = /\bexport\s+\*\s+from\s+["'`]([^"'`]+)["'`]/g;
@@ -22,6 +35,98 @@ const EXPORT_TYPE_LIST_RE = /\bexport\s+type\s*{([^}]+)}(?!\s*from)/g;
 const JSDOC_EXPORT_DECLARATION_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s+(?:declare\s+)?(?:const|let|var|class|interface|type|enum|async\s+function|function)\s+([A-Za-z_$][\w$]*)/g;
 const JSDOC_EXPORT_LIST_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s*(?:type\s*)?{([^}]+)}(?!\s*from)/g;
 const JSDOC_EXPORT_DEFAULT_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s+default\b/g;
+
+/**
+ * Single-pass parse of a source file.
+ * Replaces calling parseLocalReferences + parseExportedNames + parseIgnoredExportNames
+ * + importParser.parseImports separately — all regex runs happen once over the same string.
+ */
+export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): FileSymbols {
+  const allSpecifiers = new Set<string>();
+  const references: LocalReference[] = [];
+
+  // --- import "specifier" (side-effect only, no bindings) ---
+  for (const match of source.matchAll(IMPORT_SIDE_EFFECT_RE)) {
+    const specifier = match[1]?.trim();
+    if (specifier) {
+      allSpecifiers.add(specifier);
+      // side-effect imports don't contribute to local reference tracking
+    }
+  }
+
+  // --- import ... from "specifier" ---
+  for (const match of source.matchAll(IMPORT_CLAUSE_RE)) {
+    const clause = match[1]?.trim();
+    const specifier = match[2]?.trim();
+    if (!clause || !specifier) continue;
+    allSpecifiers.add(specifier);
+    references.push({ specifier, ...parseImportClause(clause) });
+  }
+
+  // --- import("specifier") ---
+  for (const match of source.matchAll(DYNAMIC_IMPORT_RE)) {
+    const specifier = match[1]?.trim();
+    if (specifier) {
+      allSpecifiers.add(specifier);
+      references.push({ specifier, importedNames: [], usesAllExports: true });
+    }
+  }
+
+  // --- require("specifier") ---
+  for (const match of source.matchAll(REQUIRE_RE)) {
+    const specifier = match[1]?.trim();
+    if (specifier) {
+      allSpecifiers.add(specifier);
+      references.push({ specifier, importedNames: [], usesAllExports: true });
+    }
+  }
+
+  // --- require.resolve("specifier") ---
+  for (const match of source.matchAll(REQUIRE_RESOLVE_RE)) {
+    const specifier = match[1]?.trim();
+    if (specifier) {
+      allSpecifiers.add(specifier);
+      references.push({ specifier, importedNames: [], usesAllExports: true });
+    }
+  }
+
+  // --- import X = require("specifier") ---
+  for (const match of source.matchAll(IMPORT_EQUALS_RE)) {
+    const specifier = match[1]?.trim();
+    if (specifier) {
+      allSpecifiers.add(specifier);
+      references.push({ specifier, importedNames: [], usesAllExports: true });
+    }
+  }
+
+  // --- export { X } from "specifier" ---
+  for (const match of source.matchAll(EXPORT_FROM_RE)) {
+    const specifier = match[2]?.trim();
+    const importedNames = parseListedNames(match[1] ?? "", "source");
+    if (specifier) {
+      allSpecifiers.add(specifier);
+      references.push({ specifier, importedNames, usesAllExports: false });
+    }
+  }
+
+  // --- export * from / export * as ns from ---
+  for (const pattern of [EXPORT_ALL_FROM_RE, EXPORT_ALL_AS_FROM_RE]) {
+    for (const match of source.matchAll(pattern)) {
+      const specifier = match[1]?.trim();
+      if (specifier) {
+        allSpecifiers.add(specifier);
+        references.push({ specifier, importedNames: [], usesAllExports: true });
+      }
+    }
+  }
+
+  return {
+    allSpecifiers: [...allSpecifiers].sort(),
+    localReferences: dedupeReferences(references),
+    exportedNames: collectExportedNames(source),
+    ignoredExportNames: collectIgnoredExportNames(source, jsdocIgnoreTags),
+  };
+}
 
 export function parseLocalReferences(source: string): LocalReference[] {
   const references: LocalReference[] = [];
@@ -80,6 +185,14 @@ export function parseLocalReferences(source: string): LocalReference[] {
 }
 
 export function parseIgnoredExportNames(source: string, tagNames: string[]): string[] {
+  return collectIgnoredExportNames(source, tagNames);
+}
+
+export function parseExportedNames(source: string): string[] {
+  return collectExportedNames(source);
+}
+
+function collectIgnoredExportNames(source: string, tagNames: string[]): string[] {
   if (tagNames.length === 0) {
     return [];
   }
@@ -123,7 +236,7 @@ export function parseIgnoredExportNames(source: string, tagNames: string[]): str
   return [...ignored].sort();
 }
 
-export function parseExportedNames(source: string): string[] {
+function collectExportedNames(source: string): string[] {
   const names = new Set<string>();
 
   if (EXPORT_DEFAULT_RE.test(source)) {

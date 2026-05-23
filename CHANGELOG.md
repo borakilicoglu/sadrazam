@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.1.9
+
+### Added
+- `sadrazam init` for interactive `sadrazam.json` creation, including piped input support for automated setup
+- `--explain <type>` output for supported finding types in text, JSON, and TOON reports
+- TypeScript `compilerOptions.paths` alias resolution for local import reachability
+
+### Changed
+- `--fix` can now add missing package declarations to `devDependencies` with a `"*"` placeholder version, while continuing to remove deterministic unused package declarations
+- Improved `pnpm-workspace.yaml` parsing for quoted workspace patterns, inline comments, and additional top-level keys
+- Expanded script command package detection for common build, test, lint, release, and utility tools
+
 ## v0.1.8
 
 ### Added

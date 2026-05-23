@@ -43,6 +43,7 @@ export interface AppliedFixSummary {
   packagePath: string;
   removedDependencies: string[];
   removedDevDependencies: string[];
+  addedDevDependencies: string[];
   formattedFiles: string[];
 }
 
@@ -66,16 +67,26 @@ async function applyWorkspaceFixes(
 ): Promise<AppliedFixSummary | null> {
   const unusedDependencies = getFindingItems(workspace.findings, "unused-dependencies");
   const unusedDevDependencies = getFindingItems(workspace.findings, "unused-devDependencies");
+  const missingPackages = getFindingItems(workspace.findings, "missing");
 
-  if (unusedDependencies.length === 0 && unusedDevDependencies.length === 0) {
+  if (
+    unusedDependencies.length === 0 &&
+    unusedDevDependencies.length === 0 &&
+    missingPackages.length === 0
+  ) {
     return null;
   }
 
   const packageJson = await readPackageJson(workspace.result.packagePath) as MutablePackageJson;
   const removedDependencies = removePackageEntries(packageJson, "dependencies", unusedDependencies);
   const removedDevDependencies = removePackageEntries(packageJson, "devDependencies", unusedDevDependencies);
+  const addedDevDependencies = addPackageEntries(packageJson, "devDependencies", missingPackages);
 
-  if (removedDependencies.length === 0 && removedDevDependencies.length === 0) {
+  if (
+    removedDependencies.length === 0 &&
+    removedDevDependencies.length === 0 &&
+    addedDevDependencies.length === 0
+  ) {
     return null;
   }
 
@@ -83,8 +94,7 @@ async function applyWorkspaceFixes(
 
   await writeFile(
     workspace.result.packagePath,
-    `${JSON.stringify(formattedPackageJson, null, 2)}
-`,
+    `${JSON.stringify(formattedPackageJson, null, 2)}\n`,
     "utf8",
   );
 
@@ -92,6 +102,7 @@ async function applyWorkspaceFixes(
     packagePath: workspace.result.packagePath,
     removedDependencies,
     removedDevDependencies,
+    addedDevDependencies,
     formattedFiles: options.format ? [workspace.result.packagePath] : [],
   };
 }
@@ -122,6 +133,44 @@ function removePackageEntries(
   }
 
   return removed.sort();
+}
+
+/**
+ * Adds missing packages to the given section with a "*" version placeholder.
+ * Skips packages that are already declared anywhere in the package.json.
+ * Returns the sorted list of actually added package names.
+ */
+function addPackageEntries(
+  packageJson: MutablePackageJson,
+  section: "dependencies" | "devDependencies",
+  packageNames: string[],
+): string[] {
+  if (packageNames.length === 0) {
+    return [];
+  }
+
+  const alreadyDeclared = new Set<string>([
+    ...Object.keys(packageJson.dependencies ?? {}),
+    ...Object.keys(packageJson.devDependencies ?? {}),
+    ...Object.keys(packageJson.peerDependencies ?? {}),
+    ...Object.keys(packageJson.optionalDependencies ?? {}),
+  ]);
+
+  const toAdd = packageNames.filter((name) => !alreadyDeclared.has(name));
+
+  if (toAdd.length === 0) {
+    return [];
+  }
+
+  if (!packageJson[section]) {
+    packageJson[section] = {};
+  }
+
+  for (const name of toAdd) {
+    packageJson[section]![name] = "*";
+  }
+
+  return toAdd.sort();
 }
 
 function formatPackageJson(packageJson: MutablePackageJson): MutablePackageJson {

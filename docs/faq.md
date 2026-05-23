@@ -12,6 +12,10 @@ Yes. Sadrazam discovers workspaces and can filter them with `--workspace`.
 
 Yes. Use `--trace <package>`.
 
+## Can it explain why a finding was reported?
+
+Yes. Use `--explain <type>` with one supported finding type, such as `--explain unused-files`.
+
 ## Where should I put config?
 
 Use either `sadrazam.json` or `package.json#sadrazam`.
@@ -22,7 +26,7 @@ Yes. The exit codes are stable and the JSON and TOON reporters are intended for 
 
 ## Can it apply fixes automatically?
 
-Yes, for deterministic `package.json` cleanup. Use `--fix`, or `--fix --format` to also normalize the modified file.
+Yes, for conservative `package.json` cleanup. `--fix` removes deterministic unused package declarations and can add missing package declarations to `devDependencies` with a `"*"` placeholder version. Use `--fix --format` to also normalize the modified file.
 
 ## Can it find unused files and exports?
 

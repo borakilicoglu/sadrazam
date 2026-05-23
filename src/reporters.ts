@@ -43,6 +43,7 @@ export interface RenderReportInput {
   workspaces: ReportWorkspace[];
   trace?: string;
   traceExport?: string;
+  explain?: string;
   aiSummary?: string;
   warnings?: string[];
   configurationHints?: string[];
@@ -76,6 +77,7 @@ export interface RenderReportInput {
     packagePath: string;
     removedDependencies: string[];
     removedDevDependencies: string[];
+    addedDevDependencies: string[];
     formattedFiles: string[];
   }>;
 }
@@ -126,6 +128,9 @@ export function renderReport(input: RenderReportInput): string {
       }
       if (fix.removedDevDependencies.length > 0) {
         lines.push(`Removed devDependencies: ${fix.removedDevDependencies.join(", ")}`);
+      }
+      if (fix.addedDevDependencies.length > 0) {
+        lines.push(`Added devDependencies: ${fix.addedDevDependencies.join(", ")} (version "*" — run npm install to resolve)`);
       }
       if (fix.formattedFiles.length > 0) {
         lines.push(`Formatted files: ${fix.formattedFiles.join(", ")}`);
@@ -247,6 +252,12 @@ export function renderReport(input: RenderReportInput): string {
         }
       }
     }
+
+    if (input.explain) {
+      lines.push("");
+      lines.push(pc.bold(`Explain: ${input.explain}`));
+      lines.push(...renderExplainLines(input.explain, result, workspace.relativeDir));
+    }
   }
 
   if (input.debug) {
@@ -360,6 +371,9 @@ function buildStructuredReport(input: RenderReportInput) {
             export: input.traceExport,
             sources: result.exportTraces[input.traceExport] ?? [],
           }
+        : null,
+      explain: input.explain
+        ? buildExplainPayload(input.explain, result, workspace.relativeDir)
         : null,
     })),
   };
@@ -646,4 +660,141 @@ function renderSarifReport(input: RenderReportInput) {
       },
     ],
   };
+}
+
+// ---------------------------------------------------------------------------
+// --explain helpers
+// ---------------------------------------------------------------------------
+
+interface ExplainPayload {
+  type: string;
+  entryFiles: string[];
+  items: Array<{
+    item: string;
+    reason: string;
+    importedBy?: string[];
+  }>;
+}
+
+function buildExplainPayload(
+  findingType: string,
+  result: ScanResult,
+  relativeDir: string,
+): ExplainPayload {
+  const entryFiles = result.scriptEntryFiles;
+
+  if (findingType === "unused-files") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.unusedFiles.map((file) => ({
+        item: file,
+        reason: "Not reachable from any entry point via local imports.",
+      })),
+    };
+  }
+
+  if (findingType === "unused-exports") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.unusedExports.map((entry) => {
+        const [file, exportName] = entry.split(": ");
+        const traceKey = `${file}: ${exportName}`;
+        const importedBy = result.exportTraces[traceKey] ?? [];
+        return {
+          item: entry,
+          reason: importedBy.length === 0
+            ? "Export is not imported by any reachable file."
+            : "Export exists in traces but was filtered.",
+          importedBy,
+        };
+      }),
+    };
+  }
+
+  if (
+    findingType === "unused-dependencies" ||
+    findingType === "unused-devDependencies"
+  ) {
+    const packages = findingType === "unused-dependencies"
+      ? result.unusedDependencies
+      : result.unusedDevDependencies;
+
+    return {
+      type: findingType,
+      entryFiles,
+      items: packages.map((pkg) => ({
+        item: pkg,
+        reason: "Package is declared but not imported in any scanned file or script.",
+        importedBy: result.packageTraces[pkg] ?? [],
+      })),
+    };
+  }
+
+  if (findingType === "missing") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.missingPackages.map((pkg) => ({
+        item: pkg,
+        reason: "Package is imported but not declared in package.json.",
+        importedBy: result.packageTraces[pkg] ?? [],
+      })),
+    };
+  }
+
+  if (findingType === "misplaced-devDependencies") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.misplacedDevDependencies.map((pkg) => ({
+        item: pkg,
+        reason: "Package is a devDependency but imported in production files.",
+        importedBy: (result.packageTraces[pkg] ?? []).filter((f) =>
+          result.files.find((file) => file.relativePath === f)?.isProduction,
+        ),
+      })),
+    };
+  }
+
+  return { type: findingType, entryFiles, items: [] };
+}
+
+function renderExplainLines(
+  findingType: string,
+  result: ScanResult,
+  relativeDir: string,
+): string[] {
+  const payload = buildExplainPayload(findingType, result, relativeDir);
+  const lines: string[] = [];
+
+  if (payload.entryFiles.length > 0) {
+    lines.push(pc.dim(`Entry files: ${payload.entryFiles.join(", ")}`));
+  } else {
+    lines.push(pc.dim("Entry files: none detected"));
+  }
+
+  if (payload.items.length === 0) {
+    lines.push(pc.green(`No ${findingType} findings to explain.`));
+    return lines;
+  }
+
+  for (const entry of payload.items) {
+    lines.push("");
+    lines.push(pc.yellow(`  ${entry.item}`));
+    lines.push(pc.dim(`  Reason: ${entry.reason}`));
+
+    if (entry.importedBy && entry.importedBy.length > 0) {
+      lines.push(pc.dim(`  Imported by: ${entry.importedBy.join(", ")}`));
+    } else if (
+      findingType === "unused-dependencies" ||
+      findingType === "unused-devDependencies" ||
+      findingType === "missing"
+    ) {
+      lines.push(pc.dim("  Imported by: (none found in scanned files)"));
+    }
+  }
+
+  return lines;
 }

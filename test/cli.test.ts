@@ -76,6 +76,48 @@ describe("CLI", () => {
     ]);
   });
 
+  it("initializes config from piped answers", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "sadrazam-init-"));
+    const tempProject = path.join(tempRoot, "project");
+
+    try {
+      execFileSync("node", [cliPath, "init", tempProject], {
+        cwd: rootDir,
+        encoding: "utf8",
+        input: [
+          "json",
+          "y",
+          "y",
+          "y",
+          "unused-files",
+          "react",
+          "lodash",
+          "y",
+          "anthropic",
+          "claude-3-5-sonnet",
+        ].join("\n"),
+      });
+
+      const config = JSON.parse(readFileSync(path.join(tempProject, "sadrazam.json"), "utf8"));
+
+      expect(config).toEqual({
+        reporter: "json",
+        cache: true,
+        production: true,
+        strict: true,
+        exclude: ["unused-files"],
+        allowUnusedDependencies: ["react"],
+        ignorePackages: ["lodash"],
+        ai: {
+          provider: "anthropic",
+          model: "claude-3-5-sonnet",
+        },
+      });
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
 
   it("resolves catalog references and reports unused catalog entries", () => {
     const report = runJsonReport("catalog-project");
@@ -196,6 +238,7 @@ describe("CLI", () => {
           packagePath,
           removedDependencies: ["react"],
           removedDevDependencies: ["eslint"],
+          addedDevDependencies: [],
           formattedFiles: [],
         },
       ]);
@@ -257,6 +300,7 @@ describe("CLI", () => {
           packagePath,
           removedDependencies: ["react"],
           removedDevDependencies: ["eslint"],
+          addedDevDependencies: [],
           formattedFiles: [packagePath],
         },
       ]);
@@ -265,6 +309,48 @@ describe("CLI", () => {
       expect(formattedPackageJsonText.indexOf('"tsx"')).toBeLessThan(formattedPackageJsonText.indexOf('"typescript"'));
       expect(formattedPackageJsonText).not.toContain('"react"');
       expect(formattedPackageJsonText).not.toContain('"eslint"');
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("adds missing packages to devDependencies when fix mode is enabled", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "sadrazam-fix-missing-"));
+    const tempProject = path.join(tempRoot, "project");
+
+    cpSync(path.join(rootDir, "test", "fixtures", "config-project"), tempProject, { recursive: true });
+
+    try {
+      const packagePath = path.join(tempProject, "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8")) as {
+        dependencies: Record<string, string>;
+        devDependencies: Record<string, string>;
+      };
+
+      // Remove commander so it becomes a "missing" package
+      delete packageJson.dependencies.commander;
+      // Also remove react (unused) so we test both operations together
+      writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+      writeFileSync(
+        path.join(tempProject, "sadrazam.json"),
+        `${JSON.stringify({ reporter: "json" }, null, 2)}\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject, ["--fix"]);
+      const updatedPackageJson = JSON.parse(readFileSync(packagePath, "utf8")) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+
+      expect(report.mode.fix).toBe(true);
+      expect(report.appliedFixes[0].addedDevDependencies).toEqual(["commander"]);
+      // commander added with "*" placeholder version
+      expect(updatedPackageJson.devDependencies?.["commander"]).toBe("*");
+      // after fix, no missing findings remain
+      expect(
+        report.workspaces[0].findings.filter((f: { type: string }) => f.type === "missing"),
+      ).toEqual([]);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -286,6 +372,32 @@ describe("CLI", () => {
 
     expect(workspace.findings).toEqual([]);
     expect(workspace.externalImports).toEqual(["commander", "typescript"]);
+  });
+
+  it("resolves tsconfig path aliases and does not report them as missing packages", () => {
+    const report = runJsonReport("alias-project");
+    const workspace = report.workspaces[0];
+
+    // @/utils/greet, ~/utils/farewell, and fallback path targets should resolve locally
+    expect(workspace.findings).toEqual([]);
+    expect(workspace.externalImports).toEqual(["commander"]);
+    // aliased files should be reachable, not reported as unused
+    expect(workspace.unusedFiles).toEqual([]);
+  });
+
+  it("rejects unsupported explain finding types", () => {
+    try {
+      execFileSync("node", [cliPath, path.join(rootDir, "test", "fixtures", "config-project"), "--explain", "nope"], {
+        cwd: rootDir,
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      throw new Error("Expected command to fail");
+    } catch (error) {
+      const typedError = error as { stderr?: string; status?: number };
+      expect(typedError.status).toBe(1);
+      expect(typedError.stderr).toContain('Unsupported finding type "nope"');
+    }
   });
 
   it("filters built-in modules and maps known script binaries to package names", () => {
@@ -415,6 +527,37 @@ describe("CLI", () => {
       export: "src/lib.ts:usedHelper",
       sources: ["src/index.ts"],
     });
+  });
+
+  it("explains unused-files findings with entry files and reason", () => {
+    const report = runJsonReport("unused-files-project", ["--explain", "unused-files"]);
+    const explain = report.workspaces[0].explain;
+
+    expect(explain.type).toBe("unused-files");
+    expect(explain.items).toHaveLength(1);
+    expect(explain.items[0].item).toBe("src/unused.ts");
+    expect(explain.items[0].reason).toContain("entry point");
+  });
+
+  it("explains unused-exports findings with import trace", () => {
+    const report = runJsonReport("unused-exports-project", ["--explain", "unused-exports"]);
+    const explain = report.workspaces[0].explain;
+
+    expect(explain.type).toBe("unused-exports");
+    expect(explain.items).toHaveLength(1);
+    expect(explain.items[0].item).toBe("src/lib.ts: unusedHelper");
+    expect(explain.items[0].reason).toContain("not imported");
+  });
+
+  it("explains unused-dependencies with import locations", () => {
+    const report = runJsonReport("config-project", ["--explain", "unused-dependencies"]);
+    const explain = report.workspaces[0].explain;
+
+    expect(explain.type).toBe("unused-dependencies");
+    // config-project has react as unused dep
+    expect(explain.items.some((i: { item: string }) => i.item === "react")).toBe(true);
+    const reactEntry = explain.items.find((i: { item: string }) => i.item === "react");
+    expect(reactEntry.importedBy).toEqual([]);
   });
 
   it("reruns in watch mode when project files change", async () => {

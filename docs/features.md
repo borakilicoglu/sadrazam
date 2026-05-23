@@ -4,7 +4,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 
 | Name | Description or example |
 | --- | --- |
-| Auto-fix | Use `--fix` to safely remove deterministic unused package declarations from `package.json`. |
+| Auto-fix | Use `--fix` to remove deterministic unused package declarations and add missing package declarations with a reviewable `"*"` placeholder version. |
 | Cache | Use `--cache` to speed up consecutive runs when inputs are unchanged. |
 | Catalog | Reuse config entries with `catalog.packages` and `catalog.entryFiles`, and get hints for unused catalog entries. |
 | CommonJS | `require`, `require.resolve`, and hybrid import patterns are supported. |
@@ -13,6 +13,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Debug | Use `--debug` for troubleshooting resolved config and rule state. |
 | Filters | Use `--include` and `--exclude` to focus on specific finding groups. |
 | Format | Use `--format` with `--fix` to normalize modified `package.json` files. |
+| Init | Use `sadrazam init` to create a `sadrazam.json` config interactively or from piped answers. |
 | JSDoc tags | Tag exports with `@sadrazam-ignore` or `@sadrazam-keep` to suppress unused export findings. |
 | Memory usage | Use `--memory` for peak heap and RSS insight. |
 | Monorepos | Workspaces are first-class and can be filtered with `--workspace`. |
@@ -28,6 +29,8 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Source mapping | Map `dist` files back to `src` files through sourcemaps and heuristics. |
 | Strict mode | Use `--strict` to flag production usage of `devDependencies`. |
 | Trace | Trace packages and exports to find where they are used. |
+| Explain | Use `--explain <type>` to add deterministic explanation details for one finding type. |
+| TypeScript paths | Resolve `compilerOptions.paths` aliases so local aliased imports are not reported as missing packages. |
 | Watch mode | Use `--watch` for live updates of unused files, exports, and dependency findings. |
 | Workspace | Use `--workspace` to filter workspaces in a monorepo. |
 
@@ -39,5 +42,6 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 - unused export detection
 - missing package declarations
 - package and export trace output
+- finding explanations with `--explain`
 - AI-powered summaries for OpenAI, Anthropic, and Gemini
 - safe `package.json` cleanup with optional formatting

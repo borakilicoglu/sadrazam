@@ -17,6 +17,7 @@ import { getConfigurationHints } from "./configHints.js";
 import { loadSadrazamConfig, type SadrazamConfig } from "./config.js";
 import { getActiveFindings, type FindingRules } from "./findings.js";
 import { findSourceFiles } from "./fileFinder.js";
+import { runInit } from "./init.js";
 import {
   renderReport,
   SUPPORTED_REPORTERS,
@@ -75,6 +76,7 @@ program
   .option("--watch", "re-run analysis when relevant project files change")
   .option("--trace <package>", "trace where a package is treated as used")
   .option("--trace-export <target>", "trace where an export is treated as used (relativePath:exportName)")
+  .option("--explain <type>", `explain findings for a given type (${SUPPORTED_FINDING_TYPES.join(", ")})`)
   .option("--ignore-packages <names>", "comma-separated package names to ignore in findings")
   .option("--allow-unused-dependencies <names>", "comma-separated dependency allowlist")
   .option("--allow-unused-dev-dependencies <names>", "comma-separated devDependency allowlist")
@@ -99,6 +101,8 @@ Examples:
   sadrazam . --workspace packages/web
   sadrazam . --production --strict
   AI_PROVIDER=openai AI_TOKEN=... sadrazam . --ai
+  sadrazam . --explain unused-files
+  sadrazam . --explain unused-dependencies
 `,
   )
   .action(async (target, options) => {
@@ -112,6 +116,20 @@ Examples:
     }
 
     process.exitCode = await runScanCommand(targetDir, options);
+  });
+
+program
+  .command("init")
+  .description("Create a sadrazam.json config file interactively")
+  .argument("[target]", "directory to initialize", ".")
+  .action(async (target: string) => {
+    try {
+      await runInit(path.resolve(target));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(pc.red(`Error: ${message}`));
+      process.exitCode = 1;
+    }
   });
 
 program.parseAsync(process.argv);
@@ -153,6 +171,7 @@ async function runScanCommand(
     const reporter = parseReporter(mergedOptions.reporter);
     const include = parseFindingTypes(mergedOptions.include);
     const exclude = parseFindingTypes(mergedOptions.exclude);
+    const explain = parseOptionalFindingType(mergedOptions.explain);
     const workspaceFilters = parseCsvOption(mergedOptions.workspace);
     const rules = buildFindingRules(mergedOptions, include, exclude, loadedConfig.config);
 
@@ -234,6 +253,7 @@ async function runScanCommand(
       ...(appliedFixes.length > 0 ? { appliedFixes } : {}),
       ...(mergedOptions.trace ? { trace: String(mergedOptions.trace) } : {}),
       ...(mergedOptions.traceExport ? { traceExport: String(mergedOptions.traceExport) } : {}),
+      ...(explain ? { explain } : {}),
       ...(aiSummary ? { aiSummary } : {}),
       ...(aiConfig
         ? {
@@ -395,6 +415,22 @@ function parseFindingTypes(value?: string): FindingType[] {
   return items as FindingType[];
 }
 
+function parseOptionalFindingType(value?: string): FindingType | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const findings = parseFindingTypes(value);
+
+  if (findings.length !== 1) {
+    throw new Error(
+      `--explain expects exactly one finding type. Supported finding types: ${SUPPORTED_FINDING_TYPES.join(", ")}`,
+    );
+  }
+
+  return findings[0];
+}
+
 function parseCsvOption(value?: string): string[] {
   return (value ?? "")
     .split(",")
@@ -443,6 +479,7 @@ interface CliOptions {
   watch: boolean;
   trace: string | undefined;
   traceExport: string | undefined;
+  explain: string | undefined;
   ignorePackages: string | undefined;
   allowUnusedDependencies: string | undefined;
   allowUnusedDevDependencies: string | undefined;
@@ -470,6 +507,7 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
     watch: rawOptions.watch === true ? true : config.watch ?? false,
     trace: asOptionalString(rawOptions.trace) ?? config.trace,
     traceExport: asOptionalString(rawOptions.traceExport),
+    explain: asOptionalString(rawOptions.explain),
     ignorePackages: asOptionalString(rawOptions.ignorePackages) ?? config.ignorePackages?.join(","),
     allowUnusedDependencies:
       asOptionalString(rawOptions.allowUnusedDependencies) ?? config.allowUnusedDependencies?.join(","),

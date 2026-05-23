@@ -99,6 +99,12 @@ Basic scan:
 npx sadrazam .
 ```
 
+Create a config file:
+
+```bash
+npx sadrazam init
+```
+
 JSON output:
 
 ```bash
@@ -117,10 +123,18 @@ Auto-fix:
 npx sadrazam . --fix --format
 ```
 
+`--fix` removes deterministic unused package declarations and can add missing packages to `devDependencies` with a `"*"` placeholder version.
+
 Trace why something is used:
 
 ```bash
 npx sadrazam . --trace typescript
+```
+
+Explain findings of one type:
+
+```bash
+npx sadrazam . --explain unused-files
 ```
 
 ---
@@ -146,10 +160,11 @@ AI will:
 - unused dependency detection
 - unused file + export detection
 - monorepo & workspace support
+- TypeScript path alias support
 - script-aware scanning
 - CommonJS + modern import support
 - safe auto-fix
-- JSON + TOON + text output
+- text, JSON, TOON, markdown, and SARIF output
 - AI-powered insights
 
 👉 Full feature list: https://borakilicoglu.github.io/sadrazam/features

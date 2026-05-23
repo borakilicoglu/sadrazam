@@ -14,6 +14,12 @@ Scan a specific package or app:
 sadrazam ./packages/web
 ```
 
+Create `sadrazam.json` interactively:
+
+```bash
+sadrazam init
+```
+
 Limit the scan to one workspace:
 
 ```bash
@@ -56,6 +62,12 @@ Trace where an export is used:
 sadrazam . --trace-export src/lib.ts:usedHelper
 ```
 
+Explain findings of one type:
+
+```bash
+sadrazam . --explain unused-files
+```
+
 Apply safe `package.json` cleanup and formatting:
 
 ```bash
@@ -92,11 +104,13 @@ sadrazam . --exclude unused-devDependencies
 
 ## Auto-fix And Format
 
-Use `--fix` to remove deterministic unused package declarations from `package.json`:
+Use `--fix` to apply conservative `package.json` edits:
 
 ```bash
 sadrazam . --fix
 ```
+
+`--fix` removes deterministic unused `dependencies` and `devDependencies`. It can also add missing package declarations to `devDependencies` with a `"*"` placeholder version; run your package manager afterward to resolve the exact version.
 
 Use `--fix --format` to also normalize the modified `package.json` file:
 
@@ -124,3 +138,5 @@ Sadrazam currently reports these main finding groups:
 - `unused-exports`
 
 Use `--include` and `--exclude` to focus the output on the findings you care about.
+
+Use `--explain <type>` with one supported finding type to include deterministic explanation details in text, JSON, and TOON output.

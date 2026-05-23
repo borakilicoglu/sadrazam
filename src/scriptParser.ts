@@ -20,6 +20,34 @@ const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
   changeset: "@changesets/cli",
   markdownlint: "markdownlint-cli",
   tsc: "typescript",
+  // test runners
+  jest: "jest",
+  vitest: "vitest",
+  mocha: "mocha",
+  // linters / formatters
+  eslint: "eslint",
+  prettier: "prettier",
+  standard: "standard",
+  // build tools
+  vite: "vite",
+  webpack: "webpack",
+  rollup: "rollup",
+  esbuild: "esbuild",
+  tsup: "tsup",
+  tsdown: "tsdown",
+  // utilities
+  rimraf: "rimraf",
+  "cross-env": "cross-env",
+  concurrently: "concurrently",
+  "wait-on": "wait-on",
+  dotenv: "dotenv-cli",
+  // git hooks
+  husky: "husky",
+  "lint-staged": "lint-staged",
+  // release / versioning
+  "semantic-release": "semantic-release",
+  "release-it": "release-it",
+  bumpp: "bumpp",
 };
 
 export interface ParsedScripts {

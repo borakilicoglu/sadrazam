@@ -94,39 +94,7 @@ async function readPnpmWorkspacePatterns(rootDir: string): Promise<string[]> {
 
   try {
     const source = await readFile(workspacePath, "utf8");
-    const lines = source.split(/\r?\n/);
-    const patterns: string[] = [];
-    let inPackagesSection = false;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      if (!trimmed || trimmed.startsWith("#")) {
-        continue;
-      }
-
-      if (!inPackagesSection) {
-        if (trimmed === "packages:") {
-          inPackagesSection = true;
-        }
-        continue;
-      }
-
-      if (/^[A-Za-z0-9_-]+:\s*$/.test(trimmed) && !trimmed.startsWith("-")) {
-        break;
-      }
-
-      const match = trimmed.match(/^\-\s*(.+)$/);
-      const workspacePattern = match?.[1];
-
-      if (!workspacePattern) {
-        continue;
-      }
-
-      patterns.push(workspacePattern.trim().replace(/^['"]|['"]$/g, ""));
-    }
-
-    return patterns;
+    return parsePnpmWorkspaceYaml(source);
   } catch (error) {
     const typedError = error as NodeJS.ErrnoException;
 
@@ -136,6 +104,89 @@ async function readPnpmWorkspacePatterns(rootDir: string): Promise<string[]> {
 
     throw error;
   }
+}
+
+/**
+ * Parses the `packages` field from a pnpm-workspace.yaml file without
+ * requiring a full YAML parser dependency.
+ *
+ * pnpm-workspace.yaml only uses a small subset of YAML:
+ *   packages:
+ *     - "packages/**"
+ *     - apps/*
+ *
+ * Handles:
+ *   - Single and double quoted values
+ *   - Inline comments (# ...)
+ *   - Multiple top-level keys (catalogMode, catalog, etc.)
+ *   - Empty lines and comment-only lines
+ */
+export function parsePnpmWorkspaceYaml(source: string): string[] {
+  const lines = source.split(/\r?\n/);
+  const patterns: string[] = [];
+  let inPackagesSection = false;
+
+  for (const line of lines) {
+    const stripped = stripYamlInlineComment(line).trimEnd();
+    const trimmed = stripped.trim();
+
+    if (!trimmed) {
+      continue;
+    }
+
+    // Detect top-level key (no leading whitespace, ends with colon)
+    const isTopLevelKey = /^[A-Za-z][\w-]*\s*:/.test(line);
+
+    if (isTopLevelKey) {
+      inPackagesSection = /^packages\s*:/.test(trimmed);
+      continue;
+    }
+
+    if (!inPackagesSection) {
+      continue;
+    }
+
+    // Match a list item: "  - value" or "  - 'value'" or '  - "value"'
+    const listMatch = trimmed.match(/^-\s+(.+)$/);
+
+    if (!listMatch) {
+      continue;
+    }
+
+    const raw = listMatch[1]?.trim() ?? "";
+    // Strip surrounding quotes if present
+    const value = raw.replace(/^(['"])(.*)\1$/, "$2").trim();
+
+    if (value) {
+      patterns.push(value);
+    }
+  }
+
+  return patterns;
+}
+
+function stripYamlInlineComment(line: string): string {
+  let quote: "'" | "\"" | null = null;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if ((char === "'" || char === "\"") && !quote) {
+      quote = char;
+      continue;
+    }
+
+    if (char === quote) {
+      quote = null;
+      continue;
+    }
+
+    if (char === "#" && !quote) {
+      return line.slice(0, index);
+    }
+  }
+
+  return line;
 }
 
 function normalizeWorkspacePattern(pattern: string): string {
