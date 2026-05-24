@@ -161,6 +161,7 @@ AI will:
 - unused file + export detection
 - monorepo & workspace support
 - TypeScript path alias support
+- OXC-backed parser and local resolver
 - script-aware scanning
 - CommonJS + modern import support
 - safe auto-fix

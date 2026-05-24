@@ -1,3 +1,5 @@
+import { createJavaScriptCodeMask, isCodeMatch } from "./sourceSanitizer.js";
+
 const IMPORT_RE =
   /\bimport\s+(?:type\s+)?(?:[^"'`]+?\s+from\s+)?["'`]([^"'`]+)["'`]/g;
 const IMPORT_EQUALS_RE = /\bimport\s+[\w*\s{},]+\s*=\s*require\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
@@ -19,13 +21,14 @@ export interface ParsedImport {
 
 export function parseImports(source: string): ParsedImport[] {
   const matches: ParsedImport[] = [];
+  const codeMask = createJavaScriptCodeMask(source);
 
-  collectMatches(matches, source, IMPORT_RE, "import");
-  collectMatches(matches, source, IMPORT_EQUALS_RE, "import-equals");
-  collectMatches(matches, source, EXPORT_FROM_RE, "export-from");
-  collectMatches(matches, source, DYNAMIC_IMPORT_RE, "dynamic-import");
-  collectMatches(matches, source, REQUIRE_RE, "require");
-  collectMatches(matches, source, REQUIRE_RESOLVE_RE, "require-resolve");
+  collectMatches(matches, source, codeMask, IMPORT_RE, "import");
+  collectMatches(matches, source, codeMask, IMPORT_EQUALS_RE, "import-equals");
+  collectMatches(matches, source, codeMask, EXPORT_FROM_RE, "export-from");
+  collectMatches(matches, source, codeMask, DYNAMIC_IMPORT_RE, "dynamic-import");
+  collectMatches(matches, source, codeMask, REQUIRE_RE, "require");
+  collectMatches(matches, source, codeMask, REQUIRE_RESOLVE_RE, "require-resolve");
 
   return dedupe(matches);
 }
@@ -33,10 +36,15 @@ export function parseImports(source: string): ParsedImport[] {
 function collectMatches(
   matches: ParsedImport[],
   source: string,
+  codeMask: boolean[],
   pattern: RegExp,
   kind: ParsedImport["kind"],
 ): void {
   for (const match of source.matchAll(pattern)) {
+    if (!isCodeMatch(match, codeMask)) {
+      continue;
+    }
+
     const specifier = match[1]?.trim();
 
     if (specifier) {

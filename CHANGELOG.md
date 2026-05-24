@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.1.10
+
+### Added
+- OXC-backed source parsing for JavaScript and TypeScript import/export analysis, with regex fallback for sources OXC cannot parse
+- OXC-backed local resolution for TypeScript source extension aliases and `package.json#imports` specifiers
+- Parser backend counts in workspace summaries so JSON and TOON consumers can see OXC versus fallback coverage
+
+### Fixed
+- Ignore import, require, and export syntax that appears inside comments or string literals
+- Treat package import specifiers resolved to local source files as local imports instead of missing packages
+
 ## v0.1.9
 
 ### Added

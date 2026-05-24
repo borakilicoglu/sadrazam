@@ -17,6 +17,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | JSDoc tags | Tag exports with `@sadrazam-ignore` or `@sadrazam-keep` to suppress unused export findings. |
 | Memory usage | Use `--memory` for peak heap and RSS insight. |
 | Monorepos | Workspaces are first-class and can be filtered with `--workspace`. |
+| OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
 | Plugins | Built-in plugin analysis exists for common tools, even though this is not a large external plugin ecosystem yet. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
@@ -41,6 +42,7 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 - unused file detection
 - unused export detection
 - missing package declarations
+- OXC-backed import/export parsing and local package import resolution
 - package and export trace output
 - finding explanations with `--explain`
 - AI-powered summaries for OpenAI, Anthropic, and Gemini

@@ -1,3 +1,6 @@
+import { parseFileSymbolsWithOxc } from "./oxcParser.js";
+import { createJavaScriptCodeMask, isCodeMatch } from "./sourceSanitizer.js";
+
 export interface LocalReference {
   specifier: string;
   importedNames: string[];
@@ -13,6 +16,13 @@ export interface FileSymbols {
   exportedNames: string[];
   /** Exports tagged with a JSDoc ignore tag. */
   ignoredExportNames: string[];
+}
+
+export type ParseBackend = "oxc" | "regex";
+
+export interface ParsedFileSymbols {
+  symbols: FileSymbols;
+  backend: ParseBackend;
 }
 
 const IMPORT_CLAUSE_RE = /\bimport\s+([\s\S]*?)\s+from\s+["'`]([^"'`]+)["'`]/g;
@@ -41,12 +51,29 @@ const JSDOC_EXPORT_DEFAULT_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s+default\b/g;
  * Replaces calling parseLocalReferences + parseExportedNames + parseIgnoredExportNames
  * + importParser.parseImports separately — all regex runs happen once over the same string.
  */
-export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): FileSymbols {
+export function parseFileSymbols(source: string, jsdocIgnoreTags: string[], filename?: string): FileSymbols {
+  return parseFileSymbolsDetailed(source, jsdocIgnoreTags, filename).symbols;
+}
+
+export function parseFileSymbolsDetailed(
+  source: string,
+  jsdocIgnoreTags: string[],
+  filename?: string,
+): ParsedFileSymbols {
+  const ignoredExportNames = collectIgnoredExportNames(source, jsdocIgnoreTags);
+  const oxcSymbols = parseFileSymbolsWithOxc(source, ignoredExportNames, filename);
+
+  if (oxcSymbols) {
+    return { symbols: oxcSymbols, backend: "oxc" };
+  }
+
+  const codeMask = createJavaScriptCodeMask(source);
   const allSpecifiers = new Set<string>();
   const references: LocalReference[] = [];
 
   // --- import "specifier" (side-effect only, no bindings) ---
   for (const match of source.matchAll(IMPORT_SIDE_EFFECT_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       allSpecifiers.add(specifier);
@@ -56,6 +83,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
 
   // --- import ... from "specifier" ---
   for (const match of source.matchAll(IMPORT_CLAUSE_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const clause = match[1]?.trim();
     const specifier = match[2]?.trim();
     if (!clause || !specifier) continue;
@@ -65,6 +93,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
 
   // --- import("specifier") ---
   for (const match of source.matchAll(DYNAMIC_IMPORT_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       allSpecifiers.add(specifier);
@@ -74,6 +103,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
 
   // --- require("specifier") ---
   for (const match of source.matchAll(REQUIRE_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       allSpecifiers.add(specifier);
@@ -83,6 +113,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
 
   // --- require.resolve("specifier") ---
   for (const match of source.matchAll(REQUIRE_RESOLVE_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       allSpecifiers.add(specifier);
@@ -92,6 +123,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
 
   // --- import X = require("specifier") ---
   for (const match of source.matchAll(IMPORT_EQUALS_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       allSpecifiers.add(specifier);
@@ -101,6 +133,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
 
   // --- export { X } from "specifier" ---
   for (const match of source.matchAll(EXPORT_FROM_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[2]?.trim();
     const importedNames = parseListedNames(match[1] ?? "", "source");
     if (specifier) {
@@ -112,6 +145,7 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
   // --- export * from / export * as ns from ---
   for (const pattern of [EXPORT_ALL_FROM_RE, EXPORT_ALL_AS_FROM_RE]) {
     for (const match of source.matchAll(pattern)) {
+      if (!isCodeMatch(match, codeMask)) continue;
       const specifier = match[1]?.trim();
       if (specifier) {
         allSpecifiers.add(specifier);
@@ -121,17 +155,28 @@ export function parseFileSymbols(source: string, jsdocIgnoreTags: string[]): Fil
   }
 
   return {
-    allSpecifiers: [...allSpecifiers].sort(),
-    localReferences: dedupeReferences(references),
-    exportedNames: collectExportedNames(source),
-    ignoredExportNames: collectIgnoredExportNames(source, jsdocIgnoreTags),
+    symbols: {
+      allSpecifiers: [...allSpecifiers].sort(),
+      localReferences: dedupeReferences(references),
+      exportedNames: collectExportedNames(source, codeMask),
+      ignoredExportNames,
+    },
+    backend: "regex",
   };
 }
 
 export function parseLocalReferences(source: string): LocalReference[] {
+  const oxcSymbols = parseFileSymbolsWithOxc(source);
+
+  if (oxcSymbols) {
+    return oxcSymbols.localReferences;
+  }
+
+  const codeMask = createJavaScriptCodeMask(source);
   const references: LocalReference[] = [];
 
   for (const match of source.matchAll(IMPORT_CLAUSE_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const clause = match[1]?.trim();
     const specifier = match[2]?.trim();
 
@@ -143,6 +188,7 @@ export function parseLocalReferences(source: string): LocalReference[] {
   }
 
   for (const match of source.matchAll(DYNAMIC_IMPORT_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       references.push({ specifier, importedNames: [], usesAllExports: true });
@@ -150,6 +196,7 @@ export function parseLocalReferences(source: string): LocalReference[] {
   }
 
   for (const match of source.matchAll(REQUIRE_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       references.push({ specifier, importedNames: [], usesAllExports: true });
@@ -157,6 +204,7 @@ export function parseLocalReferences(source: string): LocalReference[] {
   }
 
   for (const match of source.matchAll(IMPORT_EQUALS_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[1]?.trim();
     if (specifier) {
       references.push({ specifier, importedNames: [], usesAllExports: true });
@@ -164,6 +212,7 @@ export function parseLocalReferences(source: string): LocalReference[] {
   }
 
   for (const match of source.matchAll(EXPORT_FROM_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
     const specifier = match[2]?.trim();
     const importedNames = parseListedNames(match[1] ?? "", "source");
 
@@ -174,6 +223,7 @@ export function parseLocalReferences(source: string): LocalReference[] {
 
   for (const pattern of [EXPORT_ALL_FROM_RE, EXPORT_ALL_AS_FROM_RE]) {
     for (const match of source.matchAll(pattern)) {
+      if (!isCodeMatch(match, codeMask)) continue;
       const specifier = match[1]?.trim();
       if (specifier) {
         references.push({ specifier, importedNames: [], usesAllExports: true });
@@ -189,7 +239,13 @@ export function parseIgnoredExportNames(source: string, tagNames: string[]): str
 }
 
 export function parseExportedNames(source: string): string[] {
-  return collectExportedNames(source);
+  const oxcSymbols = parseFileSymbolsWithOxc(source);
+
+  if (oxcSymbols) {
+    return oxcSymbols.exportedNames;
+  }
+
+  return collectExportedNames(source, createJavaScriptCodeMask(source));
 }
 
 function collectIgnoredExportNames(source: string, tagNames: string[]): string[] {
@@ -236,15 +292,19 @@ function collectIgnoredExportNames(source: string, tagNames: string[]): string[]
   return [...ignored].sort();
 }
 
-function collectExportedNames(source: string): string[] {
+function collectExportedNames(source: string, codeMask: boolean[]): string[] {
   const names = new Set<string>();
 
-  if (EXPORT_DEFAULT_RE.test(source)) {
-    names.add("default");
+  for (const match of source.matchAll(EXPORT_DEFAULT_RE)) {
+    if (isCodeMatch(match, codeMask)) {
+      names.add("default");
+      break;
+    }
   }
 
   for (const pattern of EXPORT_DECLARATION_RES) {
     for (const match of source.matchAll(pattern)) {
+      if (!isCodeMatch(match, codeMask)) continue;
       const name = match[1]?.trim();
       if (name) {
         names.add(name);
@@ -254,6 +314,7 @@ function collectExportedNames(source: string): string[] {
 
   for (const pattern of [EXPORT_LIST_RE, EXPORT_TYPE_LIST_RE]) {
     for (const match of source.matchAll(pattern)) {
+      if (!isCodeMatch(match, codeMask)) continue;
       for (const name of parseListedNames(match[1] ?? "", "exported")) {
         names.add(name);
       }

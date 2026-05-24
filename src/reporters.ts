@@ -204,6 +204,9 @@ export function renderReport(input: RenderReportInput): string {
     if (input.memory) {
       lines.push(`Heap used: ${formatMb(result.memory.heapUsedMb)}`);
     }
+    if (input.debug) {
+      lines.push(`Parser: OXC ${result.parseStats.oxcFiles}, fallback ${result.parseStats.fallbackFiles}`);
+    }
 
     if (findingCount === 0) {
       lines.push(pc.green("No dependency issues found."));
@@ -353,6 +356,10 @@ function buildStructuredReport(input: RenderReportInput) {
         scriptCommandPackages: result.scriptCommandPackages,
         scriptEntryFiles: result.scriptEntryFiles,
         cached: result.cached,
+        parser: {
+          oxcFiles: result.parseStats.oxcFiles,
+          fallbackFiles: result.parseStats.fallbackFiles,
+        },
       },
       findings,
       externalImports: result.externalImports,

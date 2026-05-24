@@ -50,6 +50,12 @@ Measure scan performance with cache enabled:
 sadrazam . --cache --performance
 ```
 
+Show debug details, including parser backend coverage:
+
+```bash
+sadrazam . --debug
+```
+
 Trace where a package is used:
 
 ```bash

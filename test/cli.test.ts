@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -150,6 +150,14 @@ describe("CLI", () => {
     expect(report.memory.peak.heapUsedMb).toBeGreaterThanOrEqual(0);
     expect(workspace.memory.heapUsedMb).toBeGreaterThanOrEqual(0);
     expect(workspace.memory.rssMb).toBeGreaterThanOrEqual(0);
+  });
+
+  it("includes parser backend counts in workspace summaries", () => {
+    const report = runJsonReport("config-project");
+    const parser = report.workspaces[0].summary.parser;
+
+    expect(parser.oxcFiles).toBeGreaterThan(0);
+    expect(parser.fallbackFiles).toBe(0);
   });
 
   it("renders a markdown report", () => {
@@ -383,6 +391,76 @@ describe("CLI", () => {
     expect(workspace.externalImports).toEqual(["commander"]);
     // aliased files should be reachable, not reported as unused
     expect(workspace.unusedFiles).toEqual([]);
+  });
+
+  it("resolves TypeScript source files from explicit JavaScript extension imports", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "sadrazam-oxc-resolver-"));
+    const tempProject = path.join(tempRoot, "project");
+
+    try {
+      mkdirSync(path.join(tempProject, "src"), { recursive: true });
+      writeFileSync(
+        path.join(tempProject, "package.json"),
+        `${JSON.stringify({ name: "oxc-resolver-project", version: "1.0.0", type: "module" }, null, 2)}\n`,
+        "utf8",
+      );
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import { used } from "./lib.js";\n\nexport const value = used;\n`,
+        "utf8",
+      );
+      writeFileSync(path.join(tempProject, "src", "lib.ts"), `export const used = 1;\n`, "utf8");
+
+      const report = runJsonReportForDir(tempProject);
+      const workspace = report.workspaces[0];
+
+      expect(workspace.findings).toEqual([]);
+      expect(workspace.unusedFiles).toEqual([]);
+      expect(workspace.unusedExports).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("treats package imports resolved to source files as local", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "sadrazam-package-imports-"));
+    const tempProject = path.join(tempRoot, "project");
+
+    try {
+      mkdirSync(path.join(tempProject, "src"), { recursive: true });
+      writeFileSync(
+        path.join(tempProject, "package.json"),
+        `${JSON.stringify(
+          {
+            name: "package-imports-project",
+            version: "1.0.0",
+            type: "module",
+            imports: {
+              "#utils": "./src/utils.ts",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import { util } from "#utils";\n\nexport const value = util;\n`,
+        "utf8",
+      );
+      writeFileSync(path.join(tempProject, "src", "utils.ts"), `export const util = 1;\n`, "utf8");
+
+      const report = runJsonReportForDir(tempProject);
+      const workspace = report.workspaces[0];
+
+      expect(workspace.findings).toEqual([]);
+      expect(workspace.externalImports).toEqual([]);
+      expect(workspace.unusedFiles).toEqual([]);
+      expect(workspace.unusedExports).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("rejects unsupported explain finding types", () => {

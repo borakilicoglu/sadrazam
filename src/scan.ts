@@ -3,14 +3,17 @@ import { builtinModules } from "node:module";
 import { performance as nodePerformance } from "node:perf_hooks";
 import path from "node:path";
 
+import { ResolverFactory } from "oxc-resolver";
+
 import { readScanCache, writeScanCache } from "./cache.js";
 import { findSourceFiles } from "./fileFinder.js";
 import { loadAliasEntries, resolveAlias, resolveAliasCandidates, type AliasEntry } from "./aliasResolver.js";
 import { readPackageMetadata } from "./packageReader.js";
 import { analyzePluginInputs, analyzePlugins, type PluginInputsConfig } from "./plugins.js";
 import {
-  parseFileSymbols,
+  parseFileSymbolsDetailed,
   type LocalReference,
+  type ParseBackend,
 } from "./symbolParser.js";
 import { parsePackageScripts } from "./scriptParser.js";
 import { mapToSourcePath } from "./sourceMapper.js";
@@ -31,6 +34,16 @@ const RESOLVABLE_EXTENSIONS = [
   ".mdx",
   ".astro",
 ];
+const OXC_RESOLVER = new ResolverFactory({
+  extensions: RESOLVABLE_EXTENSIONS,
+  extensionAlias: {
+    ".js": [".ts", ".tsx", ".js", ".jsx"],
+    ".jsx": [".tsx", ".jsx"],
+    ".mjs": [".mts", ".mjs"],
+    ".cjs": [".cts", ".cjs"],
+  },
+  tsconfig: "auto",
+});
 
 export interface FileScanResult {
   filePath: string;
@@ -59,6 +72,11 @@ export interface ScanMemory {
   arrayBuffersMb: number;
 }
 
+export interface ScanParseStats {
+  oxcFiles: number;
+  fallbackFiles: number;
+}
+
 export interface ScanResult {
   rootDir: string;
   packagePath: string;
@@ -77,6 +95,7 @@ export interface ScanResult {
   unusedExports: string[];
   performance: ScanPerformance;
   memory: ScanMemory;
+  parseStats: ScanParseStats;
   cached: boolean;
 }
 
@@ -133,6 +152,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
         ...cachedResult,
         cached: true,
         memory: getProcessMemoryUsage(),
+        parseStats: cachedResult.parseStats ?? { oxcFiles: 0, fallbackFiles: 0 },
         performance: {
           discoverInputsMs: roundMs(discoverInputsMs),
           scriptParseMs: roundMs(scriptParseMs),
@@ -146,27 +166,34 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   }
 
   const readFilesStart = nodePerformance.now();
-  const fileResults = await Promise.all(
+  const parsedFiles = await Promise.all(
     dedupedFiles.map(async (filePath) => {
       const source = await readFile(filePath, "utf8");
-      const { allSpecifiers, localReferences, exportedNames, ignoredExportNames } = parseFileSymbols(
+      const { symbols, backend } = parseFileSymbolsDetailed(
         source,
         options.jsdocIgnoreExportTags ?? DEFAULT_JSDOC_IGNORE_EXPORT_TAGS,
+        filePath,
       );
+      const { allSpecifiers, localReferences, exportedNames, ignoredExportNames } = symbols;
       const imports = allSpecifiers;
       const relativePath = path.relative(absoluteRoot, filePath) || path.basename(filePath);
 
       return {
-        filePath,
-        relativePath,
-        imports,
-        localReferences,
-        exportedNames,
-        ignoredExportNames,
-        isProduction: isProductionFilePath(absoluteRoot, filePath),
+        result: {
+          filePath,
+          relativePath,
+          imports,
+          localReferences,
+          exportedNames,
+          ignoredExportNames,
+          isProduction: isProductionFilePath(absoluteRoot, filePath),
+        },
+        backend,
       };
     }),
   );
+  const fileResults = parsedFiles.map((file) => file.result);
+  const parseStats = collectParseStats(parsedFiles.map((file) => file.backend));
   const readFilesMs = nodePerformance.now() - readFilesStart;
 
   const analysisStart = nodePerformance.now();
@@ -244,6 +271,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     misplacedDevDependencies,
     unusedFiles,
     unusedExports,
+    parseStats,
   };
 
   if (options.cache) {
@@ -275,6 +303,13 @@ function mergeStringLists(...lists: string[][]): string[] {
   return [...new Set(lists.flat())].sort();
 }
 
+function collectParseStats(backends: ParseBackend[]): ScanParseStats {
+  return {
+    oxcFiles: backends.filter((backend) => backend === "oxc").length,
+    fallbackFiles: backends.filter((backend) => backend === "regex").length,
+  };
+}
+
 function mergeCommandUsage(
   ...usages: Array<Record<string, string[]>>
 ): Record<string, string[]> {
@@ -301,9 +336,14 @@ function mergeCommandUsage(
 
 function collectExternalImports(files: FileScanResult[], scriptPackages: string[], aliases: AliasEntry[]): string[] {
   const packages = new Set<string>();
+  const filePathSet = new Set(files.map((file) => file.filePath));
 
   for (const file of files) {
     for (const specifier of file.imports) {
+      if (resolveLocalImport(file.filePath, specifier, filePathSet, aliases)) {
+        continue;
+      }
+
       if (!isExternalSpecifier(specifier, aliases)) {
         continue;
       }
@@ -343,10 +383,6 @@ function collectExportTraces(
     }
 
     for (const reference of file.localReferences) {
-      if (!isLocalSpecifier(reference.specifier, aliases)) {
-        continue;
-      }
-
       const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
 
       if (!target || !reachableFiles.has(target)) {
@@ -398,9 +434,14 @@ function collectPackageTraces(
   aliases: AliasEntry[],
 ): Record<string, string[]> {
   const traces = new Map<string, Set<string>>();
+  const filePathSet = new Set(files.map((file) => file.filePath));
 
   for (const file of files) {
     for (const specifier of file.imports) {
+      if (resolveLocalImport(file.filePath, specifier, filePathSet, aliases)) {
+        continue;
+      }
+
       if (!isExternalSpecifier(specifier, aliases)) {
         continue;
       }
@@ -496,10 +537,6 @@ function getUnusedExports(
     }
 
     for (const reference of file.localReferences) {
-      if (!isLocalSpecifier(reference.specifier, aliases)) {
-        continue;
-      }
-
       const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
 
       if (!target) {
@@ -578,10 +615,6 @@ function buildLocalImportGraph(
     const localImports = new Set<string>();
 
     for (const reference of file.localReferences) {
-      if (!isLocalSpecifier(reference.specifier, aliases)) {
-        continue;
-      }
-
       const resolved = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
 
       if (resolved) {
@@ -682,8 +715,43 @@ function resolveLocalImport(
     }
   }
 
+  const oxcResolved = resolveLocalImportWithOxc(fromFilePath, specifier, filePathSet);
+
+  if (oxcResolved) {
+    return oxcResolved;
+  }
+
   const target = path.resolve(path.dirname(fromFilePath), specifier);
   return resolveFileCandidate(target, filePathSet);
+}
+
+function resolveLocalImportWithOxc(
+  fromFilePath: string,
+  specifier: string,
+  filePathSet: Set<string>,
+): string | null {
+  try {
+    const resolved = OXC_RESOLVER.resolveFileSync(fromFilePath, specifier).path;
+
+    return resolved ? findFileSetPath(resolved, filePathSet) : null;
+  } catch {
+    return null;
+  }
+}
+
+function findFileSetPath(filePath: string, filePathSet: Set<string>): string | null {
+  if (filePathSet.has(filePath)) {
+    return filePath;
+  }
+
+  const privatePath = filePath.startsWith("/private/") ? filePath : `/private${filePath}`;
+  const nonPrivatePath = filePath.replace(/^\/private/, "");
+
+  if (filePathSet.has(privatePath)) {
+    return privatePath;
+  }
+
+  return filePathSet.has(nonPrivatePath) ? nonPrivatePath : null;
 }
 
 function resolveFileCandidate(target: string, filePathSet: Set<string>): string | null {
@@ -709,13 +777,6 @@ function isExternalSpecifier(specifier: string, aliases: AliasEntry[] = []): boo
   }
   // If it resolves via an alias, it's local — not an external package
   return resolveAlias(specifier, aliases) === null;
-}
-
-function isLocalSpecifier(specifier: string, aliases: AliasEntry[] = []): boolean {
-  if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
-    return true;
-  }
-  return resolveAlias(specifier, aliases) !== null;
 }
 
 function getPackageName(specifier: string): string {
@@ -800,6 +861,7 @@ function getMisplacedDevDependencies(
   aliases: AliasEntry[],
 ): string[] {
   const misplaced = new Set<string>();
+  const filePathSet = new Set(files.map((file) => file.filePath));
 
   for (const file of files) {
     if (!file.isProduction) {
@@ -807,6 +869,10 @@ function getMisplacedDevDependencies(
     }
 
     for (const specifier of file.imports) {
+      if (resolveLocalImport(file.filePath, specifier, filePathSet, aliases)) {
+        continue;
+      }
+
       if (!isExternalSpecifier(specifier, aliases)) {
         continue;
       }
