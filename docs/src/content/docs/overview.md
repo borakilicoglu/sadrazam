@@ -1,5 +1,5 @@
 ---
-title: Sadrazam
+title: Overview
 description: Dependency analysis CLI for JavaScript and TypeScript projects.
 ---
 

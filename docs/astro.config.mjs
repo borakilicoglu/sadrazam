@@ -22,7 +22,7 @@ export default defineConfig({
         {
           label: "Guide",
           items: [
-            { label: "Overview", slug: "index" },
+            { label: "Overview", slug: "overview" },
             { label: "Getting Started", slug: "getting-started" },
             { label: "CLI Usage", slug: "usage" },
             { label: "Config", slug: "config" },
@@ -35,7 +35,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: "https://github.com/borakilicoglu/sadrazam/edit/main/docs/src/content/docs/",
+        baseUrl: "https://github.com/borakilicoglu/sadrazam/edit/main/docs/",
       },
       disable404Route: true,
       credits: false,
