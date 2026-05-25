@@ -1,3 +1,7 @@
+---
+title: AI Mode
+---
+
 # AI Mode
 
 Sadrazam works without AI. The scanner stays useful on its own.

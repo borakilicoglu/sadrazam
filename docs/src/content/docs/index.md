@@ -1,36 +1,13 @@
 ---
-layout: home
-
 title: Sadrazam
-
-titleTemplate: Dependency Analysis CLI
-
-hero:
-  name: Sadrazam
-  text: Dependency analysis CLI for JavaScript and TypeScript projects
-  tagline: Find unused packages, unused files, and unused exports, then layer optional AI summaries on top of real dependency findings.
-  image:
-    src: /logo.svg
-    alt: Sadrazam logo
-  actions:
-    - theme: brand
-      text: Get Started
-      link: /getting-started
-    - theme: alt
-      text: CLI Usage
-      link: /usage
-    - theme: alt
-      text: GitHub
-      link: https://github.com/borakilicoglu/sadrazam
-
-features:
-  - title: Real code and dependency hygiene checks
-    details: Scan source files, scripts, and package manifests to find unused dependencies, missing declarations, unused files, unused exports, and suspicious dependency placement.
-  - title: Built for real repos
-    details: Workspace-aware scanning, CommonJS support, source mapping, strict mode, and script parsing are already built in.
-  - title: AI when you want it
-    details: Keep the scanner useful without AI, then add provider-backed summaries through OpenAI, Anthropic, or Gemini when you need prioritization.
+description: Dependency analysis CLI for JavaScript and TypeScript projects.
 ---
+
+# Sadrazam
+
+Sadrazam scans JavaScript and TypeScript projects for dependency and code-hygiene issues with a low-noise, deterministic output contract.
+
+It finds unused packages, missing package declarations, unresolved local imports, unused source files, and unused reachable exports. AI summaries are optional and sit on top of the real scan findings.
 
 ## Quick Start
 
@@ -47,6 +24,7 @@ AI_PROVIDER=openai AI_TOKEN=your_token npx sadrazam . --ai
 
 - unused `dependencies` and `devDependencies`
 - missing package declarations
+- unresolved local imports
 - unused source files
 - unused reachable exports
 - workspace and monorepo-aware scanning
@@ -94,10 +72,10 @@ AI_PROVIDER=openai AI_TOKEN=your_token sadrazam . --ai
 
 ## Continue Reading
 
-- [Getting Started](/getting-started)
-- [CLI Usage](/usage)
-- [Config](/config)
-- [Features](/features)
-- [Findings](/findings)
-- [AI Mode](/ai-mode)
-- [CI and Releases](/ci)
+- [Getting Started](./getting-started/)
+- [CLI Usage](./usage/)
+- [Config](./config/)
+- [Features](./features/)
+- [Findings](./findings/)
+- [AI Mode](./ai-mode/)
+- [CI and Releases](./ci/)

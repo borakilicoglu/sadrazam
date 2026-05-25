@@ -137,6 +137,12 @@ Explain findings of one type:
 npx sadrazam . --explain unused-files
 ```
 
+Limit displayed items per finding without changing the scan result or exit code:
+
+```bash
+npx sadrazam . --max-show-issues 10
+```
+
 ---
 
 ## 🧠 AI Mode (Optional)
@@ -158,6 +164,7 @@ AI will:
 ## ⚙️ Features
 
 - unused dependency detection
+- unresolved local import detection
 - unused file + export detection
 - monorepo & workspace support
 - TypeScript path alias support

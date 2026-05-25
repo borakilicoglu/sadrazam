@@ -1,3 +1,7 @@
+---
+title: Beta Checklist
+---
+
 # Beta Checklist
 
 ## Alpha to Beta

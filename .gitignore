@@ -1,9 +1,12 @@
 node_modules/
 dist/
+.astro/
+docs/.astro/
 .DS_Store
 AGENTS.md
 *.tgz
 
 docs/.vitepress/.temp/
 docs/.vitepress/dist/
+docs/dist/
 .sadrazam-cache.json

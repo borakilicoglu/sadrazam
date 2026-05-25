@@ -88,6 +88,7 @@ export interface ScanResult {
   packageTraces: Record<string, string[]>;
   exportTraces: Record<string, string[]>;
   missingPackages: string[];
+  unresolvedImports: string[];
   unusedDependencies: string[];
   unusedDevDependencies: string[];
   misplacedDevDependencies: string[];
@@ -219,6 +220,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const missingPackages = externalImports.filter(
     (name) => !packageMetadata.allDependencies.has(name),
   );
+  const unresolvedImports = collectUnresolvedImports(fileResults, aliases);
   const effectivelyUsedPackages = getEffectivelyUsedPackages(
     externalImports,
     fileResults,
@@ -266,6 +268,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     packageTraces,
     exportTraces,
     missingPackages,
+    unresolvedImports,
     unusedDependencies,
     unusedDevDependencies,
     misplacedDevDependencies,
@@ -363,6 +366,27 @@ function collectExternalImports(files: FileScanResult[], scriptPackages: string[
   }
 
   return [...packages].sort();
+}
+
+function collectUnresolvedImports(files: FileScanResult[], aliases: AliasEntry[]): string[] {
+  const unresolved = new Set<string>();
+  const filePathSet = new Set(files.map((file) => file.filePath));
+
+  for (const file of files) {
+    for (const specifier of file.imports) {
+      if (!isLocalStyleSpecifier(specifier, aliases)) {
+        continue;
+      }
+
+      if (resolveLocalImport(file.filePath, specifier, filePathSet, aliases)) {
+        continue;
+      }
+
+      unresolved.add(`${file.relativePath}: ${specifier}`);
+    }
+  }
+
+  return [...unresolved].sort();
 }
 
 function collectExportTraces(
@@ -772,11 +796,18 @@ function resolveFileCandidate(target: string, filePathSet: Set<string>): string 
 }
 
 function isExternalSpecifier(specifier: string, aliases: AliasEntry[] = []): boolean {
-  if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+  if (specifier.startsWith(".") || path.isAbsolute(specifier) || specifier.startsWith("#")) {
     return false;
   }
   // If it resolves via an alias, it's local — not an external package
   return resolveAlias(specifier, aliases) === null;
+}
+
+function isLocalStyleSpecifier(specifier: string, aliases: AliasEntry[]): boolean {
+  return specifier.startsWith(".")
+    || path.isAbsolute(specifier)
+    || specifier.startsWith("#")
+    || resolveAlias(specifier, aliases) !== null;
 }
 
 function getPackageName(specifier: string): string {

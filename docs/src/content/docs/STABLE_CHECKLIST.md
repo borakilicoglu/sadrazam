@@ -1,3 +1,7 @@
+---
+title: Stable Checklist
+---
+
 # Stable Checklist
 
 ## Release blockers

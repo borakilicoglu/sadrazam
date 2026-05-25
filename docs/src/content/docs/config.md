@@ -1,3 +1,7 @@
+---
+title: Config
+---
+
 # Config
 
 Sadrazam loads config from either:
@@ -16,6 +20,7 @@ sadrazam init
 ```json
 {
   "reporter": "json",
+  "maxShowIssues": 10,
   "production": false,
   "strict": false,
   "exclude": ["missing"],
@@ -60,6 +65,7 @@ CLI flags override config values.
 - `allowUnusedDevDependencies`
 - `allowMissingPackages`
 - `allowMisplacedDevDependencies`
+- `maxShowIssues`
 - `catalog.packages`
 - `catalog.entryFiles`
 - `inputs.entryFiles`

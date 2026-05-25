@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.1.11
+
+### Added
+- `--max-show-issues <count>` to limit displayed finding items in text, markdown, JSON, and TOON output without changing scan results or exit behavior
+- `unresolved-imports` findings for definitely unresolved local-style imports, including relative imports, absolute path imports, `package.json#imports`, and configured local aliases
+
+### Changed
+- JSON and TOON findings include `totalItems` and `omittedItems` metadata when `--max-show-issues` truncates displayed items
+- Documentation site now uses Astro Starlight instead of VitePress
+
 ## v0.1.10
 
 ### Added

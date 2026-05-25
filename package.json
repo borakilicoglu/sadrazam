@@ -1,6 +1,6 @@
 {
   "name": "sadrazam",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Dependency analysis CLI for JavaScript and TypeScript projects with optional AI-powered insights.",
   "main": "dist/index.js",
   "bin": {
@@ -19,16 +19,28 @@
     "smoke": "npm run build && node scripts/smoke.mjs",
     "test": "npm run build && vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:dev": "cd docs && ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "docs:build": "cd docs && ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "docs:preview": "cd docs && ASTRO_TELEMETRY_DISABLED=1 astro preview"
   },
   "keywords": [
     "dependency-analysis",
     "dependency-hygiene",
+    "unused-dependencies",
+    "dependency-checker",
+    "package-json",
+    "unused-files",
+    "unused-exports",
+    "unresolved-imports",
+    "static-analysis",
+    "code-hygiene",
+    "monorepo",
     "javascript",
     "typescript",
     "cli",
+    "sarif",
+    "toon",
+    "oxc",
     "ai"
   ],
   "author": "Bora Kilicoglu",
@@ -50,10 +62,11 @@
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "@astrojs/starlight": "^0.39.2",
     "@types/node": "^25.5.0",
+    "astro": "^6.3.7",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitepress": "^1.6.4",
     "vitest": "^4.1.0"
   }
 }

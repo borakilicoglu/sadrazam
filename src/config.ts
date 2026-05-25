@@ -17,6 +17,7 @@ export interface SadrazamConfig {
   cache?: boolean;
   watch?: boolean;
   trace?: string;
+  maxShowIssues?: number;
   ignorePackages?: string[];
   allowUnusedDependencies?: string[];
   allowUnusedDevDependencies?: string[];

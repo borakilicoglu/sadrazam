@@ -31,6 +31,11 @@ export function getActiveFindings(
       ]),
     },
     {
+      type: "unresolved-imports",
+      title: "Unresolved local imports",
+      items: result.unresolvedImports,
+    },
+    {
       type: "unused-dependencies",
       title: "Unused dependencies",
       items: filterPackages(result.unusedDependencies, [
@@ -119,6 +124,10 @@ function getPatternsForFinding(
 
   if (type === "unused-exports") {
     return preprocessors.exportPatterns;
+  }
+
+  if (type === "unresolved-imports") {
+    return [];
   }
 
   return preprocessors.packagePatterns;

@@ -1,3 +1,7 @@
+---
+title: CI and Releases
+---
+
 # CI and Releases
 
 ## Exit Codes
@@ -30,4 +34,4 @@ Release tags map to npm dist-tags like this:
 
 ## Docs Deployment
 
-The docs site is built with VitePress and deployed through GitHub Pages from the `main` branch workflow.
+The docs site is built with Starlight and deployed through GitHub Pages from the `main` branch workflow.

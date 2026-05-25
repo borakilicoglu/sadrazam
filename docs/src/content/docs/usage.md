@@ -1,3 +1,7 @@
+---
+title: CLI Usage
+---
+
 # CLI Usage
 
 ## Common Commands
@@ -74,6 +78,12 @@ Explain findings of one type:
 sadrazam . --explain unused-files
 ```
 
+Limit displayed items per finding while keeping full scan counts and exit behavior:
+
+```bash
+sadrazam . --max-show-issues 10
+```
+
 Apply safe `package.json` cleanup and formatting:
 
 ```bash
@@ -137,6 +147,7 @@ sadrazam . --allow-missing-packages eslint
 Sadrazam currently reports these main finding groups:
 
 - `missing`
+- `unresolved-imports`
 - `unused-dependencies`
 - `unused-devDependencies`
 - `misplaced-devDependencies`
@@ -146,3 +157,5 @@ Sadrazam currently reports these main finding groups:
 Use `--include` and `--exclude` to focus the output on the findings you care about.
 
 Use `--explain <type>` with one supported finding type to include deterministic explanation details in text, JSON, and TOON output.
+
+Use `--max-show-issues <count>` to limit displayed items per finding in text, markdown, JSON, and TOON reports. JSON and TOON include `totalItems` and `omittedItems` when a finding is truncated. SARIF remains untruncated for code scanning integrations.

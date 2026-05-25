@@ -8,6 +8,7 @@ export const SUPPORTED_REPORTERS = ["text", "json", "toon", "markdown", "sarif"]
 export type ReporterType = (typeof SUPPORTED_REPORTERS)[number];
 export type FindingType =
   | "missing"
+  | "unresolved-imports"
   | "unused-dependencies"
   | "unused-devDependencies"
   | "misplaced-devDependencies"
@@ -18,6 +19,8 @@ export interface ActiveFinding {
   type: FindingType;
   title: string;
   items: string[];
+  totalItems?: number;
+  omittedItems?: number;
 }
 
 export interface ReportWorkspace {
@@ -40,6 +43,7 @@ export interface RenderReportInput {
   strict: boolean;
   include: FindingType[];
   exclude: FindingType[];
+  maxShowIssues?: number;
   workspaces: ReportWorkspace[];
   trace?: string;
   traceExport?: string;
@@ -182,6 +186,7 @@ export function renderReport(input: RenderReportInput): string {
 
   for (const { workspace, result, findings } of input.workspaces) {
     const findingCount = findings.reduce((sum, finding) => sum + finding.items.length, 0);
+    const displayFindings = limitFindings(findings, input.maxShowIssues);
 
     lines.push("");
     lines.push(pc.bold(`${workspace.name} (${workspace.relativeDir})`));
@@ -212,12 +217,16 @@ export function renderReport(input: RenderReportInput): string {
       lines.push(pc.green("No dependency issues found."));
     }
 
-    for (const finding of findings) {
+    for (const finding of displayFindings) {
       lines.push("");
       lines.push(colorizeFindingTitle(finding.type, finding.title));
 
       for (const item of finding.items) {
         lines.push(`- ${item}`);
+      }
+
+      if ((finding.omittedItems ?? 0) > 0) {
+        lines.push(`... ${finding.omittedItems} more`);
       }
     }
 
@@ -361,8 +370,9 @@ function buildStructuredReport(input: RenderReportInput) {
           fallbackFiles: result.parseStats.fallbackFiles,
         },
       },
-      findings,
+      findings: limitFindings(findings, input.maxShowIssues),
       externalImports: result.externalImports,
+      unresolvedImports: result.unresolvedImports,
       unusedFiles: result.unusedFiles,
       unusedExports: result.unusedExports,
       performance: input.performance ? result.performance : null,
@@ -542,7 +552,7 @@ function describeMode(input: RenderReportInput): string {
 }
 
 function colorizeFindingTitle(type: FindingType, title: string): string {
-  if (type === "missing") {
+  if (type === "missing" || type === "unresolved-imports") {
     return pc.red(title);
   }
 
@@ -585,6 +595,7 @@ function renderMarkdownReport(input: RenderReportInput): string {
 
   for (const { workspace, result, findings } of input.workspaces) {
     const findingCount = findings.reduce((sum, finding) => sum + finding.items.length, 0);
+    const displayFindings = limitFindings(findings, input.maxShowIssues);
 
     lines.push('');
     lines.push(`## ${workspace.name} (${workspace.relativeDir})`);
@@ -609,12 +620,15 @@ function renderMarkdownReport(input: RenderReportInput): string {
       continue;
     }
 
-    for (const finding of findings) {
+    for (const finding of displayFindings) {
       lines.push('');
       lines.push(`### ${finding.title}`);
       lines.push('');
       for (const item of finding.items) {
         lines.push(`- ${item}`);
+      }
+      if ((finding.omittedItems ?? 0) > 0) {
+        lines.push(`- ... ${finding.omittedItems} more`);
       }
     }
   }
@@ -625,6 +639,7 @@ function renderMarkdownReport(input: RenderReportInput): string {
 function renderSarifReport(input: RenderReportInput) {
   const rules = [
     { id: 'missing', name: 'Missing package declarations', shortDescription: { text: 'Package is used but not declared in package.json.' } },
+    { id: 'unresolved-imports', name: 'Unresolved local imports', shortDescription: { text: 'A local-style import specifier could not be resolved.' } },
     { id: 'unused-dependencies', name: 'Unused dependencies', shortDescription: { text: 'A dependency is declared but not used.' } },
     { id: 'unused-devDependencies', name: 'Unused devDependencies', shortDescription: { text: 'A devDependency is declared but not used.' } },
     { id: 'misplaced-devDependencies', name: 'Misplaced devDependencies', shortDescription: { text: 'A devDependency is used in production code.' } },
@@ -636,7 +651,7 @@ function renderSarifReport(input: RenderReportInput) {
     findings.flatMap((finding) =>
       finding.items.map((item) => ({
         ruleId: finding.type,
-        level: finding.type === 'missing' || finding.type === 'misplaced-devDependencies' ? 'error' : 'warning',
+        level: finding.type === 'missing' || finding.type === 'unresolved-imports' || finding.type === 'misplaced-devDependencies' ? 'error' : 'warning',
         message: { text: `${finding.title}: ${item}` },
         locations: [
           {
@@ -751,6 +766,21 @@ function buildExplainPayload(
     };
   }
 
+  if (findingType === "unresolved-imports") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.unresolvedImports.map((entry) => {
+        const [sourceFile] = entry.split(": ");
+        return {
+          item: entry,
+          reason: "Specifier looks local but could not be resolved to a scanned source file.",
+          importedBy: sourceFile ? [sourceFile] : [],
+        };
+      }),
+    };
+  }
+
   if (findingType === "misplaced-devDependencies") {
     return {
       type: findingType,
@@ -804,4 +834,23 @@ function renderExplainLines(
   }
 
   return lines;
+}
+
+function limitFindings(findings: ActiveFinding[], maxShowIssues?: number): ActiveFinding[] {
+  if (!maxShowIssues) {
+    return findings;
+  }
+
+  return findings.map((finding) => {
+    if (finding.items.length <= maxShowIssues) {
+      return finding;
+    }
+
+    return {
+      ...finding,
+      items: finding.items.slice(0, maxShowIssues),
+      totalItems: finding.items.length,
+      omittedItems: finding.items.length - maxShowIssues,
+    };
+  });
 }

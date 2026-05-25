@@ -10,7 +10,7 @@ import fg from "fast-glob";
 import pc from "picocolors";
 
 import { generateAiSummary } from "./aiClient.js";
-import { resolveCatalogEntryFiles, resolveCatalogInputs, resolveCatalogPackageNames } from "./catalog.js";
+import { resolveCatalogInputs, resolveCatalogPackageNames } from "./catalog.js";
 import { applyAutoFixes } from "./autoFix.js";
 import { resolveAiConfig, SUPPORTED_AI_PROVIDERS } from "./aiConfig.js";
 import { getConfigurationHints } from "./configHints.js";
@@ -47,6 +47,7 @@ const EMPTY_MEMORY: ScanMemory = {
 
 const SUPPORTED_FINDING_TYPES: FindingType[] = [
   "missing",
+  "unresolved-imports",
   "unused-dependencies",
   "unused-devDependencies",
   "misplaced-devDependencies",
@@ -77,6 +78,7 @@ program
   .option("--trace <package>", "trace where a package is treated as used")
   .option("--trace-export <target>", "trace where an export is treated as used (relativePath:exportName)")
   .option("--explain <type>", `explain findings for a given type (${SUPPORTED_FINDING_TYPES.join(", ")})`)
+  .option("--max-show-issues <count>", "limit displayed issue items per finding")
   .option("--ignore-packages <names>", "comma-separated package names to ignore in findings")
   .option("--allow-unused-dependencies <names>", "comma-separated dependency allowlist")
   .option("--allow-unused-dev-dependencies <names>", "comma-separated devDependency allowlist")
@@ -103,6 +105,7 @@ Examples:
   AI_PROVIDER=openai AI_TOKEN=... sadrazam . --ai
   sadrazam . --explain unused-files
   sadrazam . --explain unused-dependencies
+  sadrazam . --max-show-issues 5
 `,
   )
   .action(async (target, options) => {
@@ -254,6 +257,7 @@ async function runScanCommand(
       ...(mergedOptions.trace ? { trace: String(mergedOptions.trace) } : {}),
       ...(mergedOptions.traceExport ? { traceExport: String(mergedOptions.traceExport) } : {}),
       ...(explain ? { explain } : {}),
+      ...(mergedOptions.maxShowIssues ? { maxShowIssues: mergedOptions.maxShowIssues } : {}),
       ...(aiSummary ? { aiSummary } : {}),
       ...(aiConfig
         ? {
@@ -480,6 +484,7 @@ interface CliOptions {
   trace: string | undefined;
   traceExport: string | undefined;
   explain: string | undefined;
+  maxShowIssues: number | undefined;
   ignorePackages: string | undefined;
   allowUnusedDependencies: string | undefined;
   allowUnusedDevDependencies: string | undefined;
@@ -508,6 +513,10 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
     trace: asOptionalString(rawOptions.trace) ?? config.trace,
     traceExport: asOptionalString(rawOptions.traceExport),
     explain: asOptionalString(rawOptions.explain),
+    maxShowIssues: parsePositiveIntegerOption(
+      rawOptions.maxShowIssues ?? config.maxShowIssues,
+      "--max-show-issues",
+    ),
     ignorePackages: asOptionalString(rawOptions.ignorePackages) ?? config.ignorePackages?.join(","),
     allowUnusedDependencies:
       asOptionalString(rawOptions.allowUnusedDependencies) ?? config.allowUnusedDependencies?.join(","),
@@ -523,6 +532,22 @@ function mergeCliWithConfig(rawOptions: Record<string, unknown>, config: Sadraza
 
 function asOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function parsePositiveIntegerOption(value: unknown, optionName: string): number | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === "string" && /^[1-9]\d*$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+
+  throw new Error(`${optionName} expects a positive integer.`);
 }
 
 function roundMs(value: number): number {

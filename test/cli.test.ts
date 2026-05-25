@@ -31,9 +31,12 @@ function runJsonReportForDir(targetDir: string, extraArgs: string[] = []) {
 
 function runReport(fixtureName: string, reporter: string, extraArgs: string[] = []) {
   const fixtureDir = path.join(rootDir, "test", "fixtures", fixtureName);
+  return runReportForDir(fixtureDir, reporter, extraArgs);
+}
 
+function runReportForDir(targetDir: string, reporter: string, extraArgs: string[] = []) {
   try {
-    return execFileSync("node", [cliPath, fixtureDir, "--reporter", reporter, ...extraArgs], {
+    return execFileSync("node", [cliPath, targetDir, "--reporter", reporter, ...extraArgs], {
       cwd: rootDir,
       encoding: "utf8",
     });
@@ -41,6 +44,20 @@ function runReport(fixtureName: string, reporter: string, extraArgs: string[] = 
     const typedError = error as { stdout: string };
     return typedError.stdout;
   }
+}
+
+function createTempProject(prefix: string) {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), prefix));
+  const tempProject = path.join(tempRoot, "project");
+  mkdirSync(path.join(tempProject, "src"), { recursive: true });
+
+  writeFileSync(
+    path.join(tempProject, "package.json"),
+    `${JSON.stringify({ name: prefix.replace(/-$/, ""), version: "1.0.0", type: "module" }, null, 2)}\n`,
+    "utf8",
+  );
+
+  return { tempRoot, tempProject };
 }
 
 async function waitForOutput(predicate: () => boolean, timeoutMs = 4000) {
@@ -178,6 +195,52 @@ describe("CLI", () => {
     expect(report).toContain("name=config-project");
   });
 
+  it("limits displayed JSON finding items without changing summary counts", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-max-show-json-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing-a";\nimport "./missing-b";\nimport "./missing-c";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject, ["--max-show-issues", "1"]);
+      const workspace = report.workspaces[0];
+      const finding = workspace.findings.find((entry: { type: string }) => entry.type === "unresolved-imports");
+
+      expect(workspace.summary.findings).toBe(3);
+      expect(finding.items).toEqual(["src/index.ts: ./missing-a"]);
+      expect(finding.totalItems).toBe(3);
+      expect(finding.omittedItems).toBe(2);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("limits displayed TOON and text finding items", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-max-show-render-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing-a";\nimport "./missing-b";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const toonReport = runReportForDir(tempProject, "toon", ["--max-show-issues", "1"]);
+      const textReport = runReportForDir(tempProject, "text", ["--max-show-issues", "1"]);
+      const markdownReport = runReportForDir(tempProject, "markdown", ["--max-show-issues", "1"]);
+
+      expect(toonReport).toContain("totalItems=2");
+      expect(toonReport).toContain("omittedItems=1");
+      expect(textReport).toContain("... 1 more");
+      expect(markdownReport).toContain("- ... 1 more");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("renders a SARIF report", () => {
     const report = JSON.parse(runReport("unused-files-project", "sarif"));
 
@@ -190,6 +253,42 @@ describe("CLI", () => {
         message: { text: "Unused files: src/unused.ts" },
       }),
     ]);
+  });
+
+  it("keeps SARIF results untruncated when max show issues is set", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-max-show-sarif-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing-a";\nimport "./missing-b";\nimport "./missing-c";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const report = JSON.parse(runReportForDir(tempProject, "sarif", ["--max-show-issues", "1"]));
+      const unresolvedResults = report.runs[0].results.filter((entry: { ruleId: string }) => entry.ruleId === "unresolved-imports");
+
+      expect(unresolvedResults).toHaveLength(3);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects invalid max show issue values", () => {
+    for (const value of ["0", "-1", "abc"]) {
+      try {
+        execFileSync("node", [cliPath, path.join(rootDir, "test", "fixtures", "config-project"), "--max-show-issues", value], {
+          cwd: rootDir,
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+        throw new Error("Expected command to fail");
+      } catch (error) {
+        const typedError = error as { stderr?: string; status?: number };
+        expect(typedError.status).toBe(1);
+        expect(typedError.stderr).toContain("--max-show-issues expects a positive integer.");
+      }
+    }
   });
 
   it("reuses cached scan results when inputs are unchanged", () => {
@@ -458,6 +557,151 @@ describe("CLI", () => {
       expect(workspace.externalImports).toEqual([]);
       expect(workspace.unusedFiles).toEqual([]);
       expect(workspace.unusedExports).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("reports unresolved relative local imports", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-unresolved-relative-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject);
+      const workspace = report.workspaces[0];
+
+      expect(workspace.findings).toContainEqual({
+        type: "unresolved-imports",
+        title: "Unresolved local imports",
+        items: ["src/index.ts: ./missing"],
+      });
+      expect(workspace.unresolvedImports).toEqual(["src/index.ts: ./missing"]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("does not report valid relative imports as unresolved", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-valid-relative-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import { util } from "./utils";\n\nexport const value = util;\n`,
+        "utf8",
+      );
+      writeFileSync(path.join(tempProject, "src", "utils.ts"), `export const util = 1;\n`, "utf8");
+
+      const report = runJsonReportForDir(tempProject);
+
+      expect(report.workspaces[0].findings).toEqual([]);
+      expect(report.workspaces[0].unresolvedImports).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("reports unresolved package imports without treating them as missing packages", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-unresolved-package-import-");
+
+    try {
+      const packagePath = path.join(tempProject, "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8")) as Record<string, unknown>;
+      packageJson.imports = { "#utils": "./src/utils.ts" };
+      writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import { util } from "#utils";\nimport "#missing";\n\nexport const value = util;\n`,
+        "utf8",
+      );
+      writeFileSync(path.join(tempProject, "src", "utils.ts"), `export const util = 1;\n`, "utf8");
+
+      const report = runJsonReportForDir(tempProject);
+      const workspace = report.workspaces[0];
+
+      expect(workspace.unresolvedImports).toEqual(["src/index.ts: #missing"]);
+      expect(workspace.externalImports).toEqual([]);
+      expect(workspace.findings).toEqual([
+        {
+          type: "unresolved-imports",
+          title: "Unresolved local imports",
+          items: ["src/index.ts: #missing"],
+        },
+      ]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("does not report bare packages as unresolved imports", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-bare-package-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import React from "react";\n\nexport const value = React;\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject);
+      const workspace = report.workspaces[0];
+
+      expect(workspace.unresolvedImports).toEqual([]);
+      expect(workspace.findings).toContainEqual({
+        type: "missing",
+        title: "Missing from package.json",
+        items: ["react"],
+      });
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("suppresses unresolved import findings when excluded", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-exclude-unresolved-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject, ["--exclude", "unresolved-imports"]);
+
+      expect(report.workspaces[0].unresolvedImports).toEqual(["src/index.ts: ./missing"]);
+      expect(report.workspaces[0].findings).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("explains unresolved import findings with source file context", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-explain-unresolved-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const report = runJsonReportForDir(tempProject, ["--explain", "unresolved-imports"]);
+      const explain = report.workspaces[0].explain;
+
+      expect(explain.type).toBe("unresolved-imports");
+      expect(explain.items).toEqual([
+        {
+          item: "src/index.ts: ./missing",
+          reason: "Specifier looks local but could not be resolved to a scanned source file.",
+          importedBy: ["src/index.ts"],
+        },
+      ]);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
