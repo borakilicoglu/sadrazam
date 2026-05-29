@@ -14,8 +14,15 @@ export interface FileSymbols {
   localReferences: LocalReference[];
   /** Exported names from this file. */
   exportedNames: string[];
+  /** Export aliases that expose the same local identifier more than once. */
+  duplicateExportAliases: DuplicateExportAlias[];
   /** Exports tagged with a JSDoc ignore tag. */
   ignoredExportNames: string[];
+}
+
+export interface DuplicateExportAlias {
+  canonical: string;
+  aliases: string[];
 }
 
 export type ParseBackend = "oxc" | "regex";
@@ -159,6 +166,7 @@ export function parseFileSymbolsDetailed(
       allSpecifiers: [...allSpecifiers].sort(),
       localReferences: dedupeReferences(references),
       exportedNames: collectExportedNames(source, codeMask),
+      duplicateExportAliases: collectDuplicateExportAliases(source, codeMask),
       ignoredExportNames,
     },
     backend: "regex",
@@ -322,6 +330,48 @@ function collectExportedNames(source: string, codeMask: boolean[]): string[] {
   }
 
   return [...names].sort();
+}
+
+function collectDuplicateExportAliases(source: string, codeMask: boolean[]): DuplicateExportAlias[] {
+  const exportedNames = new Set(collectExportedNames(source, codeMask));
+  const aliasesByCanonical = new Map<string, Set<string>>();
+
+  for (const match of source.matchAll(/\bexport\s+const\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\b/g)) {
+    if (!isCodeMatch(match, codeMask)) continue;
+    if (hasAliasJsDocBefore(source, match.index ?? 0)) continue;
+    const alias = match[1]?.trim();
+    const canonical = match[2]?.trim();
+
+    if (alias && canonical && alias !== canonical && exportedNames.has(canonical)) {
+      addDuplicateAlias(aliasesByCanonical, canonical, alias);
+    }
+  }
+
+  for (const match of source.matchAll(/\bexport\s+default\s+([A-Za-z_$][\w$]*)\b/g)) {
+    if (!isCodeMatch(match, codeMask)) continue;
+    if (hasAliasJsDocBefore(source, match.index ?? 0)) continue;
+    const canonical = match[1]?.trim();
+
+    if (canonical && exportedNames.has(canonical)) {
+      addDuplicateAlias(aliasesByCanonical, canonical, "default");
+    }
+  }
+
+  return [...aliasesByCanonical.entries()]
+    .map(([canonical, aliases]) => ({ canonical, aliases: [...aliases].sort() }))
+    .sort((left, right) => left.canonical.localeCompare(right.canonical));
+}
+
+function addDuplicateAlias(aliasesByCanonical: Map<string, Set<string>>, canonical: string, alias: string): void {
+  const aliases = aliasesByCanonical.get(canonical) ?? new Set<string>();
+  aliases.add(alias);
+  aliasesByCanonical.set(canonical, aliases);
+}
+
+function hasAliasJsDocBefore(source: string, start: number): boolean {
+  const before = source.slice(0, start);
+  const match = before.match(/\/\*\*([\s\S]*?)\*\/\s*$/);
+  return Boolean(match?.[1]?.includes("@alias"));
 }
 
 function parseImportClause(clause: string): Pick<LocalReference, "importedNames" | "usesAllExports"> {

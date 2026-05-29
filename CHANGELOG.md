@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.1.13
+
+### Added
+- `duplicate-exports` findings for reachable files that export alias-style duplicates of the same local symbol
+- `--include`, `--exclude`, and `--explain` support for duplicate export findings
+- `@alias` JSDoc suppression for intentional duplicate export aliases
+
 ## v0.1.12
 
 ### Added

@@ -154,6 +154,19 @@ const scenarios = [
     },
   },
   {
+    name: "duplicate-exports-project",
+    cwd: path.join(rootDir, "test", "fixtures", "duplicate-exports-project"),
+    args: ["--reporter", "json", "--include", "duplicate-exports"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.equal(workspace.summary.findings, 2);
+      assert.deepEqual(workspace.duplicateExports, [
+        "src/default-handler.ts: handler|default",
+        "src/helpers.ts: isUntagged|isUntaggedAlias",
+      ]);
+    },
+  },
+  {
     name: "jsdoc-tags-project",
     cwd: path.join(rootDir, "test", "fixtures", "jsdoc-tags-project"),
     args: ["--reporter", "json"],

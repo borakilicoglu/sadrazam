@@ -76,6 +76,7 @@ export default renamed;
         },
       ],
       exportedNames: ["LocalType", "default", "localValue"],
+      duplicateExportAliases: [],
       ignoredExportNames: [],
     });
   });
@@ -107,6 +108,7 @@ export const used = real;
         },
       ],
       exportedNames: ["used"],
+      duplicateExportAliases: [],
       ignoredExportNames: [],
     });
     expect(parseLocalReferences(source)).toEqual([

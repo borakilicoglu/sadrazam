@@ -47,6 +47,7 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 
 - unused file detection
 - unused export detection
+- duplicate export alias detection
 - missing package declarations
 - unresolved local import detection
 - OXC-backed import/export parsing and local package import resolution

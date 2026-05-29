@@ -175,7 +175,8 @@ async function promptConfig(context: DetectedContext, ask: Asker): Promise<Sadra
 
   // Exclude finding types
   console.log("\nFinding types: missing, unused-dependencies, unused-devDependencies,");
-  console.log("               misplaced-devDependencies, unused-files, unused-exports");
+  console.log("               misplaced-devDependencies, unused-files, unused-exports,");
+  console.log("               duplicate-exports");
   const exclude = await ask("Exclude any finding types? (comma-separated, or Enter to skip): ");
   const excludeList = exclude
     .split(",")

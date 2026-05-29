@@ -7,7 +7,7 @@ description: Dependency analysis CLI for JavaScript and TypeScript projects.
 
 Sadrazam scans JavaScript and TypeScript projects for dependency and code-hygiene issues with a low-noise, deterministic output contract.
 
-It finds unused packages, missing package declarations, unresolved local imports, unused source files, and unused reachable exports. AI summaries are optional and sit on top of the real scan findings.
+It finds unused packages, missing package declarations, unresolved local imports, unused source files, unused reachable exports, and duplicate export aliases. AI summaries are optional and sit on top of the real scan findings.
 
 ## Quick Start
 
@@ -27,6 +27,7 @@ AI_PROVIDER=openai AI_TOKEN=your_token npx sadrazam . --ai
 - unresolved local imports
 - unused source files
 - unused reachable exports
+- duplicate export aliases
 - workspace and monorepo-aware scanning
 - package usage tracing with `--trace`
 - finding explanations with `--explain`

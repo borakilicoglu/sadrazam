@@ -22,6 +22,7 @@ export function parseFileSymbolsWithOxc(
   const allSpecifiers = new Set<string>();
   const references: LocalReference[] = [];
   const exportedNames = new Set<string>();
+  const duplicateAliases = new Map<string, Set<string>>();
 
   for (const staticImport of result.module.staticImports) {
     const specifier = staticImport.moduleRequest.value.trim();
@@ -80,13 +81,98 @@ export function parseFileSymbolsWithOxc(
   }
 
   collectCommonJsReferences(result.program, allSpecifiers, references);
+  collectOxcExportDeclarations(source, result.program, exportedNames, duplicateAliases);
 
   return {
     allSpecifiers: [...allSpecifiers].sort(),
     localReferences: dedupeReferences(references),
     exportedNames: [...exportedNames].sort(),
+    duplicateExportAliases: [...duplicateAliases.entries()]
+      .map(([canonical, aliases]) => ({ canonical, aliases: [...aliases].sort() }))
+      .sort((left, right) => left.canonical.localeCompare(right.canonical)),
     ignoredExportNames,
   };
+}
+
+function collectOxcExportDeclarations(
+  source: string,
+  program: unknown,
+  exportedNames: Set<string>,
+  duplicateAliases: Map<string, Set<string>>,
+): void {
+  const candidates: Array<{ alias: string; canonical: string; start: number }> = [];
+
+  visitNode(program, (node) => {
+    if (node.type !== "ExportNamedDeclaration" && node.type !== "ExportDefaultDeclaration") {
+      return;
+    }
+
+    if (node.type === "ExportNamedDeclaration") {
+      const declaration = node.declaration;
+
+      if (!isRecord(declaration)) {
+        return;
+      }
+
+      if (declaration.type === "VariableDeclaration") {
+        const declarations = Array.isArray(declaration.declarations) ? declaration.declarations : [];
+
+        for (const declarator of declarations) {
+          if (!isRecord(declarator) || !isIdentifierRecord(declarator.id)) {
+            continue;
+          }
+
+          const alias = declarator.id.name;
+          exportedNames.add(alias);
+
+          if (isIdentifierRecord(declarator.init)) {
+            candidates.push({ alias, canonical: declarator.init.name, start: getNodeStart(node) });
+          }
+        }
+        return;
+      }
+
+      const id = declaration.id;
+      if (
+        isIdentifierRecord(id)
+        && (
+          declaration.type === "FunctionDeclaration"
+          || declaration.type === "ClassDeclaration"
+          || declaration.type === "TSTypeAliasDeclaration"
+          || declaration.type === "TSInterfaceDeclaration"
+          || declaration.type === "TSEnumDeclaration"
+          || declaration.type === "TSModuleDeclaration"
+        )
+      ) {
+        exportedNames.add(id.name);
+      }
+      return;
+    }
+
+    const declaration = node.declaration;
+    if (isIdentifierRecord(declaration)) {
+      exportedNames.add("default");
+      candidates.push({ alias: "default", canonical: declaration.name, start: getNodeStart(node) });
+    }
+  });
+
+  for (const { alias, canonical, start } of candidates) {
+    if (alias !== canonical && exportedNames.has(canonical) && !hasAliasJsDocBefore(source, start)) {
+      const aliases = duplicateAliases.get(canonical) ?? new Set<string>();
+      aliases.add(alias);
+      duplicateAliases.set(canonical, aliases);
+    }
+  }
+}
+
+function getNodeStart(node: Record<string, unknown>): number {
+  return typeof node.start === "number" ? node.start : 0;
+}
+
+function hasAliasJsDocBefore(source: string, start: number): boolean {
+  const before = source.slice(0, start);
+  const match = before.match(/\/\*\*([\s\S]*?)\*\/\s*$/);
+  return Boolean(match?.[1]?.includes("@alias"));
 }
 
 function parseOxcImportNames(entries: ParseResult["module"]["staticImports"][number]["entries"]): string[] {
@@ -246,6 +332,10 @@ function isIdentifier(node: unknown, name: string): boolean {
   return isRecord(node) && node.type === "Identifier" && node.name === name;
 }
 
+function isIdentifierRecord(node: unknown): node is Record<string, unknown> & { name: string } {
+  return isRecord(node) && node.type === "Identifier" && typeof node.name === "string";
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

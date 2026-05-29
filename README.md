@@ -152,6 +152,12 @@ Explain findings of one type:
 npx sadrazam . --explain unused-files
 ```
 
+Focus on export hygiene:
+
+```bash
+npx sadrazam . --include unused-exports,duplicate-exports
+```
+
 Limit displayed items per finding without changing the scan result or exit code:
 
 ```bash

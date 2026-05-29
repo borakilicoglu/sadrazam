@@ -38,7 +38,7 @@ Yes. Sadrazam can report unreachable source files and unused exports in reachabl
 
 ## Can I focus only on file-level findings?
 
-Yes. Use `--include unused-files,unused-exports`.
+Yes. Use `--include unused-files,unused-exports,duplicate-exports`.
 
 ## Can I ignore generated or intentionally public exports?
 

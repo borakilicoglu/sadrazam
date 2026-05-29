@@ -57,6 +57,7 @@ export interface FileScanResult {
   imports: string[];
   localReferences: LocalReference[];
   exportedNames: string[];
+  duplicateExportAliases: string[];
   ignoredExportNames: string[];
   isProduction: boolean;
 }
@@ -101,6 +102,7 @@ export interface ScanResult {
   misplacedDevDependencies: string[];
   unusedFiles: string[];
   unusedExports: string[];
+  duplicateExports: string[];
   performance: ScanPerformance;
   memory: ScanMemory;
   parseStats: ScanParseStats;
@@ -190,7 +192,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
         options.jsdocIgnoreExportTags ?? DEFAULT_JSDOC_IGNORE_EXPORT_TAGS,
         filePath,
       );
-      const { allSpecifiers, localReferences, exportedNames, ignoredExportNames } = symbols;
+      const { allSpecifiers, localReferences, exportedNames, duplicateExportAliases, ignoredExportNames } = symbols;
       const imports = allSpecifiers;
       const relativePath = path.relative(absoluteRoot, filePath) || path.basename(filePath);
 
@@ -201,6 +203,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
           imports,
           localReferences,
           exportedNames,
+          duplicateExportAliases: duplicateExportAliases.map((entry) => `${entry.canonical}|${entry.aliases.join("|")}`),
           ignoredExportNames,
           isProduction: isProductionFilePath(absoluteRoot, filePath),
         },
@@ -270,6 +273,13 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
     aliases,
   );
+  const duplicateExports = getDuplicateExports(
+    absoluteRoot,
+    fileResults,
+    packageMetadata.entrySpecifiers,
+    mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
+    aliases,
+  );
   const analysisMs = nodePerformance.now() - analysisStart;
 
   const resultWithoutRuntime = {
@@ -290,6 +300,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     misplacedDevDependencies,
     unusedFiles,
     unusedExports,
+    duplicateExports,
     parseStats,
   };
 
@@ -631,6 +642,25 @@ function getUnusedExports(
         .filter((name) => !used.has(name) && !ignored.has(name))
         .map((name) => `${file.relativePath}: ${name}`);
     })
+    .sort();
+}
+
+function getDuplicateExports(
+  rootDir: string,
+  files: FileScanResult[],
+  packageEntries: string[],
+  scriptEntryFiles: string[],
+  aliases: AliasEntry[],
+): string[] {
+  const { reachableFiles } = getReachableFilePaths(rootDir, files, packageEntries, scriptEntryFiles, aliases);
+
+  if (reachableFiles.size === 0) {
+    return [];
+  }
+
+  return files
+    .filter((file) => reachableFiles.has(file.filePath))
+    .flatMap((file) => file.duplicateExportAliases.map((entry) => `${file.relativePath}: ${entry}`))
     .sort();
 }
 

@@ -975,6 +975,69 @@ describe("CLI", () => {
     expect(report.workspaces[0].unusedExports).toEqual(["src/lib.ts: unusedHelper"]);
   });
 
+  it("reports duplicate export aliases in reachable files", () => {
+    const report = runJsonReport("duplicate-exports-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-exports",
+        title: "Unused exports",
+        items: [
+          "src/default-handler.ts: handler",
+          "src/helpers.ts: isAliasCopy",
+        ],
+      },
+      {
+        type: "duplicate-exports",
+        title: "Duplicate exports",
+        items: [
+          "src/default-handler.ts: handler|default",
+          "src/helpers.ts: isUntagged|isUntaggedAlias",
+        ],
+      },
+    ]);
+    expect(workspace.duplicateExports).toEqual([
+      "src/default-handler.ts: handler|default",
+      "src/helpers.ts: isUntagged|isUntaggedAlias",
+    ]);
+  });
+
+  it("filters duplicate export findings with include and exclude", () => {
+    const included = runJsonReport("duplicate-exports-project", ["--include", "duplicate-exports"]);
+    const excluded = runJsonReport("duplicate-exports-project", ["--exclude", "duplicate-exports"]);
+
+    expect(included.workspaces[0].findings).toEqual([
+      {
+        type: "duplicate-exports",
+        title: "Duplicate exports",
+        items: [
+          "src/default-handler.ts: handler|default",
+          "src/helpers.ts: isUntagged|isUntaggedAlias",
+        ],
+      },
+    ]);
+    expect(excluded.workspaces[0].findings.some((finding: { type: string }) => finding.type === "duplicate-exports")).toBe(false);
+  });
+
+  it("explains duplicate export findings", () => {
+    const report = runJsonReport("duplicate-exports-project", ["--explain", "duplicate-exports"]);
+
+    expect(report.workspaces[0].explain).toEqual({
+      type: "duplicate-exports",
+      entryFiles: [],
+      items: [
+        {
+          file: "src/default-handler.ts",
+          symbols: ["handler", "default"],
+        },
+        {
+          file: "src/helpers.ts",
+          symbols: ["isUntagged", "isUntaggedAlias"],
+        },
+      ],
+    });
+  });
 
   it("ignores tagged exports in unused export findings", () => {
     const report = runJsonReport("jsdoc-tags-project");

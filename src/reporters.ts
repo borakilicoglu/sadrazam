@@ -14,7 +14,8 @@ export type FindingType =
   | "unused-devDependencies"
   | "misplaced-devDependencies"
   | "unused-files"
-  | "unused-exports";
+  | "unused-exports"
+  | "duplicate-exports";
 
 export interface ActiveFinding {
   type: FindingType;
@@ -394,6 +395,7 @@ function buildStructuredReport(input: RenderReportInput) {
       unresolvedImports: result.unresolvedImports,
       unusedFiles: result.unusedFiles,
       unusedExports: result.unusedExports,
+      duplicateExports: result.duplicateExports,
       performance: input.performance ? result.performance : null,
       memory: input.memory ? result.memory : null,
       traces: input.trace
@@ -583,7 +585,7 @@ function colorizeFindingTitle(type: FindingType, title: string): string {
     return pc.red(title);
   }
 
-  if (type === "unused-files" || type === "unused-exports") {
+  if (type === "unused-files" || type === "unused-exports" || type === "duplicate-exports") {
     return pc.yellow(title);
   }
 
@@ -668,6 +670,7 @@ function renderSarifReport(input: RenderReportInput) {
     { id: 'misplaced-devDependencies', name: 'Misplaced devDependencies', shortDescription: { text: 'A devDependency is used in production code.' } },
     { id: 'unused-files', name: 'Unused files', shortDescription: { text: 'A source file is unreachable from known entries.' } },
     { id: 'unused-exports', name: 'Unused exports', shortDescription: { text: 'An export in a reachable module is not used.' } },
+    { id: 'duplicate-exports', name: 'Duplicate exports', shortDescription: { text: 'A reachable module exports aliases for the same local symbol.' } },
   ];
 
   const results = input.workspaces.flatMap(({ workspace, result, findings }) =>
@@ -714,11 +717,7 @@ function renderSarifReport(input: RenderReportInput) {
 interface ExplainPayload {
   type: string;
   entryFiles: string[];
-  items: Array<{
-    item: string;
-    reason: string;
-    importedBy?: string[];
-  }>;
+  items: Array<Record<string, unknown>>;
 }
 
 function buildExplainPayload(
@@ -753,6 +752,20 @@ function buildExplainPayload(
             ? "Export is not imported by any reachable file."
             : "Export exists in traces but was filtered.",
           importedBy,
+        };
+      }),
+    };
+  }
+
+  if (findingType === "duplicate-exports") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.duplicateExports.map((entry) => {
+        const [file = entry, symbols = ""] = entry.split(": ");
+        return {
+          file,
+          symbols: symbols.split("|").filter(Boolean),
         };
       }),
     };
@@ -842,11 +855,17 @@ function renderExplainLines(
 
   for (const entry of payload.items) {
     lines.push("");
-    lines.push(pc.yellow(`  ${entry.item}`));
-    lines.push(pc.dim(`  Reason: ${entry.reason}`));
+    const item = typeof entry.item === "string" ? entry.item : JSON.stringify(entry);
+    const reason = typeof entry.reason === "string" ? entry.reason : "Finding details are available in structured output.";
+    const importedBy = Array.isArray(entry.importedBy)
+      ? entry.importedBy.filter((value): value is string => typeof value === "string")
+      : [];
 
-    if (entry.importedBy && entry.importedBy.length > 0) {
-      lines.push(pc.dim(`  Imported by: ${entry.importedBy.join(", ")}`));
+    lines.push(pc.yellow(`  ${item}`));
+    lines.push(pc.dim(`  Reason: ${reason}`));
+
+    if (importedBy.length > 0) {
+      lines.push(pc.dim(`  Imported by: ${importedBy.join(", ")}`));
     } else if (
       findingType === "unused-dependencies" ||
       findingType === "unused-devDependencies" ||

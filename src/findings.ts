@@ -71,6 +71,11 @@ export function getActiveFindings(
       title: "Unused exports",
       items: result.unusedExports,
     },
+    {
+      type: "duplicate-exports",
+      title: "Duplicate exports",
+      items: result.duplicateExports,
+    },
   ];
 
   const preprocessedCandidates = candidates.map((candidate) => ({
@@ -122,7 +127,7 @@ function getPatternsForFinding(
     return preprocessors.filePatterns;
   }
 
-  if (type === "unused-exports") {
+  if (type === "unused-exports" || type === "duplicate-exports") {
     return preprocessors.exportPatterns;
   }
 

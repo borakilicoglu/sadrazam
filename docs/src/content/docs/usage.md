@@ -45,7 +45,7 @@ sadrazam . --reporter toon
 Focus on file and export hygiene:
 
 ```bash
-sadrazam . --include unused-files,unused-exports
+sadrazam . --include unused-files,unused-exports,duplicate-exports
 ```
 
 Measure scan performance with cache enabled:
@@ -172,6 +172,7 @@ Sadrazam currently reports these main finding groups:
 - `misplaced-devDependencies`
 - `unused-files`
 - `unused-exports`
+- `duplicate-exports`
 
 Use `--include` and `--exclude` to focus the output on the findings you care about.
 
