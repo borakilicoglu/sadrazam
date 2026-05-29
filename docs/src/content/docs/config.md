@@ -40,6 +40,14 @@ sadrazam init
   "inputs": {
     "entryFiles": ["$entryFiles:bootstrap"]
   },
+  "plugins": {
+    "vite": true,
+    "jest": false,
+    "playwright": {
+      "config": "config/playwright.config.ts",
+      "entry": "integration/**/*.spec.ts"
+    }
+  },
   "preprocessors": {
     "packagePatterns": ["@types/*"],
     "filePatterns": ["src/generated/*"],
@@ -70,9 +78,31 @@ CLI flags override config values.
 - `catalog.entryFiles`
 - `inputs.entryFiles`
 - `inputs.packageNames`
+- `plugins.<name>`
+- `plugins.<name>.config`
+- `plugins.<name>.entry`
 - `preprocessors.packagePatterns`
 - `preprocessors.filePatterns`
 - `preprocessors.exportPatterns`
 - `jsdocTags.ignoreExports`
 
 Catalog references can be used inside rule and input arrays with `$packages:<name>` and `$entryFiles:<name>`.
+
+## Plugin Configuration
+
+Sadrazam automatically enables built-in plugin analysis from package declarations, scripts, and known config files. Plugin config can force-enable a plugin, disable one, or override its config and entry files:
+
+```json
+{
+  "plugins": {
+    "vite": true,
+    "jest": false,
+    "playwright": {
+      "config": "config/playwright.config.ts",
+      "entry": ["integration/**/*.spec.ts"]
+    }
+  }
+}
+```
+
+Supported built-in plugins currently cover Astro, Cypress, ESLint, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack.

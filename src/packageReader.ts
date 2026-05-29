@@ -4,6 +4,7 @@ import path from "node:path";
 export interface PackageMetadata {
   packagePath: string;
   packageDir: string;
+  packageJson: PackageJsonShape;
   dependencies: Set<string>;
   devDependencies: Set<string>;
   peerDependencies: Set<string>;
@@ -13,13 +14,16 @@ export interface PackageMetadata {
   entrySpecifiers: string[];
 }
 
-interface PackageJsonShape {
+export interface PackageJsonShape {
   workspaces?: string[] | { packages?: string[] };
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
+  prettier?: string | {
+    plugins?: string[];
+  };
   main?: string;
   module?: string;
   types?: string;
@@ -62,6 +66,7 @@ export async function readPackageMetadata(rootDir: string): Promise<PackageMetad
   return {
     packagePath,
     packageDir: path.dirname(packagePath),
+    packageJson,
     dependencies,
     devDependencies,
     peerDependencies,

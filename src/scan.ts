@@ -9,7 +9,13 @@ import { readScanCache, writeScanCache } from "./cache.js";
 import { findSourceFiles } from "./fileFinder.js";
 import { loadAliasEntries, resolveAlias, resolveAliasCandidates, type AliasEntry } from "./aliasResolver.js";
 import { readPackageMetadata } from "./packageReader.js";
-import { analyzePluginInputs, analyzePlugins, type PluginInputsConfig } from "./plugins.js";
+import {
+  analyzePluginInputs,
+  analyzePlugins,
+  type PluginDetail,
+  type PluginInputsConfig,
+  type PluginsConfig,
+} from "./plugins.js";
 import {
   parseFileSymbolsDetailed,
   type LocalReference,
@@ -83,6 +89,7 @@ export interface ScanResult {
   files: FileScanResult[];
   externalImports: string[];
   activePlugins: string[];
+  pluginDetails: PluginDetail[];
   scriptCommandPackages: string[];
   scriptEntryFiles: string[];
   packageTraces: Record<string, string[]>;
@@ -105,6 +112,7 @@ export interface ScanOptions {
   strict?: boolean;
   cache?: boolean;
   pluginInputs?: PluginInputsConfig;
+  plugins?: PluginsConfig;
   jsdocIgnoreExportTags?: string[];
 }
 
@@ -123,7 +131,14 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
   const scriptParseStart = nodePerformance.now();
   const [scriptAnalysis, pluginAnalysis, inputAnalysis] = await Promise.all([
     parsePackageScripts(packageMetadata.packageDir, packageMetadata.scripts),
-    analyzePlugins({ packageDir: packageMetadata.packageDir, scripts: packageMetadata.scripts }),
+    analyzePlugins({
+      packageDir: packageMetadata.packageDir,
+      packagePath: packageMetadata.packagePath,
+      packageJson: packageMetadata.packageJson,
+      scripts: packageMetadata.scripts,
+      dependencyNames: packageMetadata.allDependencies,
+      ...(options.plugins ? { config: options.plugins } : {}),
+    }),
     analyzePluginInputs(packageMetadata.packageDir, options.pluginInputs),
   ]);
   const scriptParseMs = nodePerformance.now() - scriptParseStart;
@@ -263,6 +278,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     files: fileResults,
     externalImports,
     activePlugins: mergeStringLists(pluginAnalysis.activePlugins, inputAnalysis.activePlugins),
+    pluginDetails: mergePluginDetails(pluginAnalysis.details, inputAnalysis.details),
     scriptCommandPackages: commandPackages,
     scriptEntryFiles,
     packageTraces,
@@ -304,6 +320,33 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
 
 function mergeStringLists(...lists: string[][]): string[] {
   return [...new Set(lists.flat())].sort();
+}
+
+function mergePluginDetails(...detailLists: PluginDetail[][]): PluginDetail[] {
+  const details = new Map<string, PluginDetail>();
+
+  for (const detail of detailLists.flat()) {
+    const existing = details.get(detail.name);
+
+    if (!existing) {
+      details.set(detail.name, {
+        name: detail.name,
+        activation: [...new Set(detail.activation)].sort(),
+        packages: [...new Set(detail.packages)].sort(),
+        fileEntries: [...new Set(detail.fileEntries)].sort(),
+      });
+      continue;
+    }
+
+    details.set(detail.name, {
+      name: detail.name,
+      activation: mergeStringLists(existing.activation, detail.activation),
+      packages: mergeStringLists(existing.packages, detail.packages),
+      fileEntries: mergeStringLists(existing.fileEntries, detail.fileEntries),
+    });
+  }
+
+  return [...details.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function collectParseStats(backends: ParseBackend[]): ScanParseStats {

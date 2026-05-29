@@ -60,6 +60,8 @@ Show debug details, including parser backend coverage:
 sadrazam . --debug
 ```
 
+Debug output also includes plugin contribution details so you can see which plugin added package and file signals.
+
 Trace where a package is used:
 
 ```bash
@@ -132,6 +134,23 @@ Use `--fix --format` to also normalize the modified `package.json` file:
 
 ```bash
 sadrazam . --fix --format
+```
+
+## Plugin Overrides
+
+Sadrazam enables built-in plugins from package declarations, scripts, and known config files. Use `plugins` in config to force-enable a plugin, disable one, or add custom config and entry files:
+
+```json
+{
+  "plugins": {
+    "vite": true,
+    "jest": false,
+    "playwright": {
+      "config": "config/playwright.config.ts",
+      "entry": "integration/**/*.spec.ts"
+    }
+  }
+}
 ```
 
 ## Allowlist Flags

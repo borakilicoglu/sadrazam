@@ -131,6 +131,21 @@ Trace why something is used:
 npx sadrazam . --trace typescript
 ```
 
+Plugin overrides live in `sadrazam.json` when automatic tool discovery needs help:
+
+```json
+{
+  "plugins": {
+    "vite": true,
+    "jest": false,
+    "playwright": {
+      "config": "config/playwright.config.ts",
+      "entry": "integration/**/*.spec.ts"
+    }
+  }
+}
+```
+
 Explain findings of one type:
 
 ```bash

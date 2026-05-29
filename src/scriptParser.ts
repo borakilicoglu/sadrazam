@@ -22,6 +22,7 @@ const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
   tsc: "typescript",
   // test runners
   jest: "jest",
+  playwright: "@playwright/test",
   vitest: "vitest",
   mocha: "mocha",
   // linters / formatters
@@ -30,6 +31,7 @@ const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
   standard: "standard",
   // build tools
   vite: "vite",
+  "svelte-kit": "@sveltejs/kit",
   webpack: "webpack",
   rollup: "rollup",
   esbuild: "esbuild",

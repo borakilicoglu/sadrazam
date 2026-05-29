@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .astro/
+.antigravitycli/
 docs/.astro/
 .DS_Store
 AGENTS.md

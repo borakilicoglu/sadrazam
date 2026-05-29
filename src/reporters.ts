@@ -1,4 +1,5 @@
 import pc from "picocolors";
+import path from "node:path";
 
 import type { ScanMemory, ScanResult } from "./scan.js";
 import type { WorkspaceTarget } from "./workspaceFinder.js";
@@ -211,6 +212,14 @@ export function renderReport(input: RenderReportInput): string {
     }
     if (input.debug) {
       lines.push(`Parser: OXC ${result.parseStats.oxcFiles}, fallback ${result.parseStats.fallbackFiles}`);
+      if (result.pluginDetails.length > 0) {
+        lines.push("Plugin details:");
+        for (const detail of result.pluginDetails) {
+          lines.push(`- ${detail.name} (${detail.activation.join(", ") || "unknown"})`);
+          lines.push(`  packages: ${detail.packages.join(", ") || "-"}`);
+          lines.push(`  files: ${detail.fileEntries.map((filePath) => pathRelative(result.rootDir, filePath)).join(", ") || "-"}`);
+        }
+      }
     }
 
     if (findingCount === 0) {
@@ -370,6 +379,16 @@ function buildStructuredReport(input: RenderReportInput) {
           fallbackFiles: result.parseStats.fallbackFiles,
         },
       },
+      debug: input.debug
+        ? {
+            pluginDetails: result.pluginDetails.map((detail) => ({
+              name: detail.name,
+              activation: detail.activation,
+              packages: detail.packages,
+              fileEntries: detail.fileEntries.map((filePath) => pathRelative(result.rootDir, filePath)),
+            })),
+          }
+        : null,
       findings: limitFindings(findings, input.maxShowIssues),
       externalImports: result.externalImports,
       unresolvedImports: result.unresolvedImports,
@@ -394,6 +413,10 @@ function buildStructuredReport(input: RenderReportInput) {
         : null,
     })),
   };
+}
+
+function pathRelative(rootDir: string, filePath: string): string {
+  return path.relative(rootDir, filePath) || path.basename(filePath);
 }
 
 type ToonValue = null | boolean | number | string | ToonValue[] | ToonObject;

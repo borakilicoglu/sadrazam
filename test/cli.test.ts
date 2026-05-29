@@ -764,9 +764,157 @@ describe("CLI", () => {
     const report = runJsonReport("inputs-project");
     const workspace = report.workspaces[0];
 
-    expect(workspace.summary.activePlugins).toEqual(["inputs"]);
+    expect(workspace.summary.activePlugins).toEqual(["inputs", "typescript", "vite"]);
     expect(workspace.findings).toEqual([]);
     expect(workspace.externalImports).toEqual(["commander", "typescript", "vite"]);
+  });
+
+  it("discovers frontend and test tool plugins from scripts, config files, and dependencies", () => {
+    const report = runJsonReport("plugin-depth-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.summary.activePlugins).toEqual([
+      "astro",
+      "cypress",
+      "eslint",
+      "jest",
+      "next",
+      "playwright",
+      "prettier",
+      "rollup",
+      "storybook",
+      "sveltekit",
+      "tailwind",
+      "typescript",
+      "vite",
+      "vitest",
+      "webpack",
+    ]);
+    expect(workspace.findings).toEqual([]);
+    expect(workspace.externalImports).toEqual(expect.arrayContaining([
+      "@astrojs/mdx",
+      "@next/bundle-analyzer",
+      "@playwright/test",
+      "@rollup/plugin-node-resolve",
+      "@storybook/react-vite",
+      "@sveltejs/adapter-auto",
+      "@sveltejs/kit",
+      "@tailwindcss/forms",
+      "@typescript-eslint/parser",
+      "@vitejs/plugin-react",
+      "@vitest/coverage-istanbul",
+      "astro",
+      "cypress",
+      "eslint",
+      "eslint-config-prettier",
+      "eslint-plugin-react-hooks",
+      "html-webpack-plugin",
+      "jest",
+      "next",
+      "prettier",
+      "prettier-plugin-tailwindcss",
+      "rollup",
+      "storybook",
+      "tailwindcss",
+      "ts-jest",
+      "typescript",
+      "typescript-plugin-css-modules",
+      "vite",
+      "vitest",
+      "webpack",
+    ]));
+  });
+
+  it("includes plugin contribution details in debug JSON output", () => {
+    const report = runJsonReport("plugin-depth-project", ["--debug"]);
+    const pluginDetails = report.workspaces[0].debug.pluginDetails;
+    const vite = pluginDetails.find((detail: { name: string }) => detail.name === "vite");
+    const eslint = pluginDetails.find((detail: { name: string }) => detail.name === "eslint");
+
+    expect(vite).toEqual(expect.objectContaining({
+      activation: ["dependency", "script"],
+      packages: ["vite"],
+    }));
+    expect(vite.fileEntries).toContain("vite.config.ts");
+    expect(eslint).toEqual(expect.objectContaining({
+      activation: ["dependency", "script"],
+    }));
+    expect(eslint.packages).toEqual(expect.arrayContaining([
+      "@typescript-eslint/parser",
+      "eslint",
+      "eslint-config-prettier",
+      "eslint-plugin-react-hooks",
+    ]));
+  });
+
+  it("allows plugin config to disable automatic plugin analysis", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-plugin-disable-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "package.json"),
+        `${JSON.stringify({
+          name: "sadrazam-plugin-disable",
+          version: "1.0.0",
+          scripts: {
+            dev: "vite --config ./vite.config.ts",
+          },
+          dependencies: {
+            vite: "^7.0.0",
+          },
+        }, null, 2)}\n`,
+      );
+      writeFileSync(path.join(tempProject, "vite.config.ts"), "import { defineConfig } from 'vite';\nexport default defineConfig({});\n");
+      writeFileSync(path.join(tempProject, "sadrazam.json"), `${JSON.stringify({ plugins: { vite: false } }, null, 2)}\n`);
+
+      const report = runJsonReportForDir(tempProject);
+      expect(report.workspaces[0].summary.activePlugins).toEqual([]);
+      expect(report.workspaces[0].externalImports).toEqual(["vite"]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("allows plugin config to force plugins and add config and entry overrides", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-plugin-force-");
+
+    try {
+      mkdirSync(path.join(tempProject, "custom"), { recursive: true });
+      writeFileSync(
+        path.join(tempProject, "package.json"),
+        `${JSON.stringify({
+          name: "sadrazam-plugin-force",
+          version: "1.0.0",
+          dependencies: {
+            "@vitejs/plugin-react": "^5.0.0",
+            vite: "^7.0.0",
+          },
+        }, null, 2)}\n`,
+      );
+      writeFileSync(
+        path.join(tempProject, "custom", "vite.config.ts"),
+        "import react from '@vitejs/plugin-react';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [react()] });\n",
+      );
+      writeFileSync(path.join(tempProject, "custom", "entry.ts"), "export const entry = true;\n");
+      writeFileSync(
+        path.join(tempProject, "sadrazam.json"),
+        `${JSON.stringify({
+          plugins: {
+            vite: {
+              config: "custom/vite.config.ts",
+              entry: "custom/entry.ts",
+            },
+          },
+        }, null, 2)}\n`,
+      );
+
+      const report = runJsonReportForDir(tempProject);
+      expect(report.workspaces[0].summary.activePlugins).toEqual(["vite"]);
+      expect(report.workspaces[0].findings).toEqual([]);
+      expect(report.workspaces[0].externalImports).toEqual(["@vitejs/plugin-react", "vite"]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("detects built-in plugin package usage from tool-specific CLI arguments", () => {

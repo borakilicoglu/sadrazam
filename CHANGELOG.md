@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.1.12
+
+### Added
+- Registry-based built-in plugin analysis for common frontend and test tools, including Astro, Cypress, ESLint, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack
+- `plugins.<name>` config overrides to force-enable, disable, or customize plugin config and entry files
+- Plugin contribution details in debug output and structured reports
+
+### Changed
+- Expanded script command package detection for Playwright and SvelteKit
+- Bumped the scan cache version for the new plugin debug metadata
+
 ## v0.1.11
 
 ### Added

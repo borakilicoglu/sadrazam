@@ -27,6 +27,7 @@ export interface SadrazamConfig {
     entryFiles?: string[];
     packageNames?: string[];
   };
+  plugins?: Record<string, boolean | PluginConfig>;
   catalog?: {
     packages?: Record<string, string[]>;
     entryFiles?: Record<string, string[]>;
@@ -43,6 +44,11 @@ export interface SadrazamConfig {
     provider?: string;
     model?: string;
   };
+}
+
+export interface PluginConfig {
+  config?: string | string[];
+  entry?: string | string[];
 }
 
 export interface LoadedSadrazamConfig {

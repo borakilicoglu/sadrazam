@@ -24,9 +24,10 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis exists for common tools, even though this is not a large external plugin ecosystem yet. |
+| Plugins | Built-in plugin analysis covers Astro, Cypress, ESLint, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
-| Plugins: CLI arguments | Parse common tool arguments such as `--config`, `--plugin`, and `--parser` to enrich analysis. |
+| Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
+| Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
 | Preprocessors | Preprocess findings before reporting them through package, file, and export patterns. |
 | Production mode | Use `--production` to lint only production code paths. |
 | Reporters | Use built-in `text`, `json`, `toon`, `markdown`, and `sarif` reporters for human and machine-readable output. |
@@ -50,6 +51,27 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 - unresolved local import detection
 - OXC-backed import/export parsing and local package import resolution
 - package and export trace output
+- registry-based plugin discovery for common frontend and test tools
 - finding explanations with `--explain`
 - AI-powered summaries for OpenAI, Anthropic, and Gemini
 - safe `package.json` cleanup with optional formatting
+
+## Built-in Plugin Matrix
+
+| Plugin | Activation | Config files and entry signals |
+| --- | --- | --- |
+| Astro | `astro` package or script | `astro.config.*`, `src/pages/**/*.astro`, `src/content/**/*.{md,mdx}` |
+| Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
+| ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |
+| Jest | `jest` package or script | `jest.config.*`, `package.json`, `--config`, `-c` |
+| Next | `next` package or script | `next.config.*`, `pages/**`, `app/**`, `src/pages/**`, `src/app/**` |
+| Playwright | `@playwright/test` or `playwright` package/script | `playwright.config.*`, `tests/**`, `e2e/**` |
+| Prettier | `prettier` package or script | `.prettierrc*`, `prettier.config.*`, `package.json#prettier`, `--plugin`, `--config` |
+| Rollup | `rollup` package or script | `rollup.config.*`, `--config`, `-c` |
+| Storybook | `storybook` package or script | `.storybook/main.*`, `.storybook/preview.*`, stories globs |
+| SvelteKit | `@sveltejs/kit` package or `svelte-kit` script | `svelte.config.*`, `vite.config.*`, `src/routes/**`, `src/hooks.*` |
+| Tailwind | `tailwindcss` package or script | `tailwind.config.*`, `postcss.config.*`, `-c` |
+| TypeScript | `typescript` package or `tsc` script | `tsconfig*.json`, `extends`, `references`, `compilerOptions.plugins` |
+| Vite | `vite` package or script | `vite.config.*`, `--config`, `-c` |
+| Vitest | `vitest` package or script | `vitest.config.*`, `--config`, `-c` |
+| webpack | `webpack` package or script | `webpack.config.*`, `--config`, `-c` |
