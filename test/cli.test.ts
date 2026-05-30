@@ -940,7 +940,7 @@ describe("CLI", () => {
       "checkout-dir/scripts/from-checkout.js",
       "scripts/multiline.js",
       "workspace/scripts/from-working-dir.js",
-      ".github/actions/node-action/dist/pre.js",
+      ".github/actions/node-action/pre.js",
       ".github/actions/node-action/main.js",
       ".github/actions/node-action/post.js",
     ]));

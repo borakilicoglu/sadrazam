@@ -2,6 +2,6 @@ name: Node Action
 
 runs:
   using: node20
-  pre: dist/pre.js
+  pre: pre.js
   main: main.js
   post: post.js
