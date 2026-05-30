@@ -1,0 +1,7 @@
+name: Node Action
+
+runs:
+  using: node20
+  pre: dist/pre.js
+  main: main.js
+  post: post.js

@@ -917,6 +917,77 @@ describe("CLI", () => {
     }
   });
 
+  it("detects GitHub Actions workflow and local action usage", () => {
+    const report = runJsonReport("github-actions-project", ["--debug"]);
+    const workspace = report.workspaces[0];
+    const githubActions = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "github-actions");
+
+    expect(workspace.summary.activePlugins).toEqual(["eslint", "github-actions", "playwright"]);
+    expect(workspace.externalImports).toEqual([
+      "@playwright/test",
+      "eslint",
+      "tsx",
+    ]);
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-dependencies",
+        title: "Unused dependencies",
+        items: ["unused-package"],
+      },
+    ]);
+    expect(workspace.summary.scriptEntryFiles).toEqual(expect.arrayContaining([
+      "scripts/check.ts",
+      "checkout-dir/scripts/from-checkout.js",
+      "scripts/multiline.js",
+      "workspace/scripts/from-working-dir.js",
+      ".github/actions/node-action/dist/pre.js",
+      ".github/actions/node-action/main.js",
+      ".github/actions/node-action/post.js",
+    ]));
+    expect(githubActions).toEqual(expect.objectContaining({
+      activation: ["config-file"],
+      packages: ["@playwright/test", "eslint", "tsx"],
+    }));
+  });
+
+  it("allows GitHub Actions plugin config to disable automatic analysis", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-github-actions-disable-");
+
+    try {
+      mkdirSync(path.join(tempProject, ".github", "workflows"), { recursive: true });
+      writeFileSync(
+        path.join(tempProject, "package.json"),
+        `${JSON.stringify({
+          name: "sadrazam-github-actions-disable",
+          version: "1.0.0",
+          dependencies: {
+            eslint: "^9.0.0",
+          },
+        }, null, 2)}\n`,
+      );
+      writeFileSync(
+        path.join(tempProject, ".github", "workflows", "ci.yml"),
+        "jobs:\n  test:\n    steps:\n      - run: pnpm eslint\n",
+      );
+      writeFileSync(
+        path.join(tempProject, "sadrazam.json"),
+        `${JSON.stringify({ plugins: { "github-actions": false } }, null, 2)}\n`,
+      );
+
+      const report = runJsonReportForDir(tempProject);
+      expect(report.workspaces[0].summary.activePlugins).not.toContain("github-actions");
+      expect(report.workspaces[0].findings).toEqual([
+        {
+          type: "unused-dependencies",
+          title: "Unused dependencies",
+          items: ["eslint"],
+        },
+      ]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("detects built-in plugin package usage from tool-specific CLI arguments", () => {
     const report = runJsonReport("plugin-project");
     const workspace = report.workspaces[0];

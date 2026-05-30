@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.1.14
+
+### Added
+- GitHub Actions plugin scanning for workflow and local action YAML files
+- Workflow `run` command analysis with step-level `working-directory` support
+- Local node action `runs.pre`, `runs.main`, and `runs.post` entry discovery
+
 ## v0.1.13
 
 ### Added

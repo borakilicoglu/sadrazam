@@ -167,6 +167,23 @@ const scenarios = [
     },
   },
   {
+    name: "github-actions-project",
+    cwd: path.join(rootDir, "test", "fixtures", "github-actions-project"),
+    args: ["--reporter", "json", "--debug"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.ok(workspace.summary.activePlugins.includes("github-actions"));
+      assert.deepEqual(workspace.externalImports, ["@playwright/test", "eslint", "tsx"]);
+      assert.deepEqual(workspace.findings, [
+        {
+          type: "unused-dependencies",
+          title: "Unused dependencies",
+          items: ["unused-package"],
+        },
+      ]);
+    },
+  },
+  {
     name: "jsdoc-tags-project",
     cwd: path.join(rootDir, "test", "fixtures", "jsdoc-tags-project"),
     args: ["--reporter", "json"],

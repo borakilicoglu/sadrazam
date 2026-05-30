@@ -100,9 +100,12 @@ Sadrazam automatically enables built-in plugin analysis from package declaration
     "playwright": {
       "config": "config/playwright.config.ts",
       "entry": ["integration/**/*.spec.ts"]
+    },
+    "github-actions": {
+      "config": ".github/workflows/*.yml"
     }
   }
 }
 ```
 
-Supported built-in plugins currently cover Astro, Cypress, ESLint, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack.
+Supported built-in plugins currently cover Astro, Cypress, ESLint, GitHub Actions, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack.

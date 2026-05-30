@@ -2,6 +2,7 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import fg from "fast-glob";
+import { parse as parseYaml } from "yaml";
 
 import type { PackageJsonShape } from "./packageReader.js";
 
@@ -64,6 +65,7 @@ interface PluginDefinition {
   }>;
   analyzeConfig?: (filePath: string) => Promise<PluginContribution | null>;
   analyzePackageJson?: (context: PluginContext) => PluginContribution | null;
+  isEnabled?: (context: PluginContext, override: boolean | PluginConfig | undefined) => Promise<boolean>;
 }
 
 const CONFIG_FLAG_ALIASES = ["--config", "-c"];
@@ -135,6 +137,20 @@ const PLUGINS: PluginDefinition[] = [
     ]),
     analyzeConfig: analyzeTsConfig,
   },
+  {
+    ...createToolPlugin("github-actions", [], [], [
+      ".github/workflows/*.{yml,yaml}",
+      ".github/**/action.{yml,yaml}",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [".github/workflows/*.{yml,yaml}"])).length > 0;
+    },
+    analyzeConfig: analyzeGitHubActionsConfig,
+  },
 ];
 
 export async function analyzePlugins(context: PluginContext): Promise<PluginAnalysis> {
@@ -155,14 +171,15 @@ export async function analyzePlugins(context: PluginContext): Promise<PluginAnal
     const scriptInvocations = scripts.filter((script) => plugin.commands.includes(script.command));
     const isForced = override === true || isPluginConfigObject(override);
     const isDeclared = plugin.packages.some((packageName) => context.dependencyNames.has(packageName));
+    const isEnabled = await plugin.isEnabled?.(context, override) ?? false;
 
-    if (!isForced && !isDeclared && scriptInvocations.length === 0) {
+    if (!isForced && !isDeclared && !isEnabled && scriptInvocations.length === 0) {
       continue;
     }
 
     const contribution = await collectPluginContribution(plugin, context, scriptInvocations, override);
 
-    if (!hasContribution(contribution) && !isDeclared && !isForced) {
+    if (!hasContribution(contribution) && !isDeclared && !isForced && !isEnabled) {
       continue;
     }
 
@@ -174,6 +191,7 @@ export async function analyzePlugins(context: PluginContext): Promise<PluginAnal
         isDeclared ? "dependency" : null,
         scriptInvocations.length > 0 ? "script" : null,
         isForced ? "config" : null,
+        isEnabled ? "config-file" : null,
       ].filter((value): value is string => Boolean(value)),
       packages: contribution.packages ?? [],
       fileEntries: contribution.fileEntries ?? [],
@@ -517,9 +535,143 @@ async function analyzeTsConfig(filePath: string): Promise<PluginContribution | n
     : null;
 }
 
+async function analyzeGitHubActionsConfig(filePath: string): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const packageDir = findGitHubActionsRoot(filePath);
+  const fileEntries = new Set<string>();
+  const packages = new Set<string>();
+  const packageUsage = new Map<string, Set<string>>();
+
+  if (isActionManifest(filePath)) {
+    mergeContribution(collectNodeActionEntries(config, path.dirname(filePath)), packages, fileEntries, packageUsage);
+  }
+
+  for (const stepGroup of findStepGroups(config)) {
+    const checkoutPath = findCheckoutPath(stepGroup.steps);
+
+    for (const step of stepGroup.steps) {
+      if (typeof step.run !== "string") {
+        continue;
+      }
+
+      const workingDirectory = typeof step["working-directory"] === "string"
+        ? step["working-directory"]
+        : ".";
+      const commandDir = path.resolve(
+        packageDir,
+        checkoutPath && workingDirectory === "." ? checkoutPath : workingDirectory,
+      );
+
+      for (const invocation of collectScriptInvocations({ [path.relative(packageDir, filePath) || path.basename(filePath)]: step.run })) {
+        const commandPackage = getKnownCommandPackage(invocation.command, invocation.tokens);
+
+        if (commandPackage) {
+          packages.add(commandPackage);
+          addUsage(packageUsage, commandPackage, path.relative(packageDir, filePath) || path.basename(filePath));
+        }
+
+        for (const filePath of await collectPositionalFiles(commandDir, invocation.tokens.slice(1))) {
+          fileEntries.add(filePath);
+        }
+      }
+    }
+  }
+
+  return fileEntries.size > 0 || packages.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
+}
+
+interface WorkflowStep {
+  run?: unknown;
+  uses?: unknown;
+  with?: unknown;
+  "working-directory"?: unknown;
+}
+
+interface StepGroup {
+  steps: WorkflowStep[];
+}
+
+function findStepGroups(value: unknown): StepGroup[] {
+  const groups: StepGroup[] = [];
+
+  visitUnknown(value, (node) => {
+    if (!isRecord(node) || !Array.isArray(node.steps)) {
+      return;
+    }
+
+    groups.push({
+      steps: node.steps.filter(isRecord),
+    });
+  });
+
+  return groups;
+}
+
+function findCheckoutPath(steps: WorkflowStep[]): string | null {
+  for (const step of steps) {
+    if (typeof step.uses !== "string" || !step.uses.startsWith("actions/checkout@")) {
+      continue;
+    }
+
+    if (isRecord(step.with) && typeof step.with.path === "string" && typeof step.with.repository !== "string") {
+      return step.with.path;
+    }
+  }
+
+  return null;
+}
+
+function collectNodeActionEntries(config: Record<string, unknown>, actionDir: string): PluginContribution | null {
+  const runs = isRecord(config.runs) ? config.runs : null;
+
+  if (!runs || typeof runs.using !== "string" || !runs.using.startsWith("node")) {
+    return null;
+  }
+
+  const fileEntries = ["pre", "main", "post"]
+    .map((key) => runs[key])
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => path.resolve(actionDir, value));
+
+  return fileEntries.length > 0 ? { fileEntries } : null;
+}
+
+function findGitHubActionsRoot(filePath: string): string {
+  const marker = `${path.sep}.github${path.sep}`;
+  const index = filePath.indexOf(marker);
+
+  return index >= 0 ? filePath.slice(0, index) : path.dirname(filePath);
+}
+
+function isActionManifest(filePath: string): boolean {
+  const filename = path.basename(filePath);
+  return filename === "action.yml" || filename === "action.yaml";
+}
+
 function resolveTsConfigReference(baseDir: string, value: string): string {
   const resolved = path.resolve(baseDir, value);
   return path.extname(resolved) ? resolved : path.join(resolved, "tsconfig.json");
+}
+
+async function readYamlFile(filePath: string): Promise<unknown> {
+  try {
+    return parseYaml(await readFile(filePath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 async function readJsonFile(filePath: string): Promise<unknown> {
@@ -585,7 +737,64 @@ function resolveCommandName(tokens: string[]): string | null {
     return stripQuotes(third ?? "") || null;
   }
 
+  if ((command === "pnpm" || command === "yarn") && second && !isPackageManagerLifecycleCommand(stripQuotes(second))) {
+    return stripQuotes(second) || null;
+  }
+
   return command;
+}
+
+function getKnownCommandPackage(command: string, _tokens: string[]): string | null {
+  const commandPackages: Record<string, string> = {
+    changeset: "@changesets/cli",
+    eslint: "eslint",
+    knip: "knip",
+    nyc: "nyc",
+    playwright: "@playwright/test",
+    prisma: "prisma",
+    "release-it": "release-it",
+    semgrep: "semgrep",
+    tsc: "typescript",
+    tsx: "tsx",
+    vite: "vite",
+    vitest: "vitest",
+    webpack: "webpack",
+  };
+
+  return commandPackages[command] ?? null;
+}
+
+function isPackageManagerLifecycleCommand(command: string): boolean {
+  return [
+    "add",
+    "ci",
+    "config",
+    "dlx",
+    "exec",
+    "install",
+    "i",
+    "remove",
+    "run",
+    "self-update",
+    "workspace",
+  ].includes(command);
+}
+
+function visitUnknown(value: unknown, visitor: (value: unknown) => void): void {
+  visitor(value);
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      visitUnknown(item, visitor);
+    }
+    return;
+  }
+
+  if (isRecord(value)) {
+    for (const item of Object.values(value)) {
+      visitUnknown(item, visitor);
+    }
+  }
 }
 
 function normalizeEslintPlugin(value: string): string {

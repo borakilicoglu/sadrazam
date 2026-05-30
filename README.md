@@ -76,6 +76,7 @@ Unlike traditional tools:
 
 - detects unused dependencies AND unused files/exports
 - understands monorepos and modern frameworks
+- reads GitHub Actions workflows so CI-only tools are treated as used
 - optional AI layer for real explanations (not raw output)
 - safe auto-fix for `package.json`
 

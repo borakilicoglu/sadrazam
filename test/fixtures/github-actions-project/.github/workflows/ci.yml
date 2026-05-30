@@ -1,0 +1,23 @@
+name: CI
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+      - run: npx playwright test
+      - run: npm exec tsx scripts/check.ts
+      - run: |
+          pnpm eslint
+          node scripts/multiline.js
+      - run: node from-working-dir.js
+        working-directory: workspace/scripts
+  checkout-path:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: checkout-dir
+      - run: node scripts/from-checkout.js

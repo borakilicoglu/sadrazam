@@ -1,0 +1,7 @@
+name: Composite Action
+
+runs:
+  using: composite
+  steps:
+    - run: pnpm eslint
+    - run: npx playwright install

@@ -148,10 +148,15 @@ Sadrazam enables built-in plugins from package declarations, scripts, and known 
     "playwright": {
       "config": "config/playwright.config.ts",
       "entry": "integration/**/*.spec.ts"
+    },
+    "github-actions": {
+      "config": ".github/workflows/*.yml"
     }
   }
 }
 ```
+
+The GitHub Actions plugin reads workflow and local action YAML files, parses `run` commands, respects step-level `working-directory`, and treats local node action scripts as entry files.
 
 ## Allowlist Flags
 
