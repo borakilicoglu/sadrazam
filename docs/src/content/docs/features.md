@@ -2,8 +2,6 @@
 title: Features
 ---
 
-# Overview
-
 Sadrazam covers a broad dependency and code-hygiene surface. This page summarizes the current feature set in the same practical way users evaluate CLI tools: what exists and how it is used.
 
 | Name | Description or example |
@@ -62,9 +60,11 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | Plugin | Activation | Config files and entry signals |
 | --- | --- | --- |
 | Astro | `astro` package or script | `astro.config.*`, `src/pages/**/*.astro`, `src/content/**/*.{md,mdx}` |
+| CircleCI | `.circleci/config.yml` or `.yaml` | job `run` commands, job and step `working_directory` |
 | Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
 | ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |
 | GitHub Actions | `.github/workflows/*.yml` or `.yaml` | workflow `run` commands, step `working-directory`, local `action.yml` node entries |
+| GitLab CI | `.gitlab-ci.yml` or `.yaml` | `before_script`, `script`, and `after_script` command blocks |
 | Jest | `jest` package or script | `jest.config.*`, `package.json`, `--config`, `-c` |
 | Next | `next` package or script | `next.config.*`, `pages/**`, `app/**`, `src/pages/**`, `src/app/**` |
 | Playwright | `@playwright/test` or `playwright` package/script | `playwright.config.*`, `tests/**`, `e2e/**` |

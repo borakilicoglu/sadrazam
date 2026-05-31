@@ -988,6 +988,49 @@ describe("CLI", () => {
     }
   });
 
+  it("detects GitLab CI and CircleCI command usage", () => {
+    const report = runJsonReport("ci-project", ["--debug"]);
+    const workspace = report.workspaces[0];
+    const gitlabCi = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "gitlab-ci");
+    const circleCi = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "circleci");
+
+    expect(workspace.summary.activePlugins).toEqual([
+      "circleci",
+      "eslint",
+      "gitlab-ci",
+      "playwright",
+      "vitest",
+    ]);
+    expect(workspace.externalImports).toEqual([
+      "@playwright/test",
+      "eslint",
+      "tsx",
+      "vitest",
+    ]);
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-dependencies",
+        title: "Unused dependencies",
+        items: ["unused-package"],
+      },
+    ]);
+    expect(workspace.summary.scriptEntryFiles).toEqual(expect.arrayContaining([
+      ".circleci/config.yml",
+      ".gitlab-ci.yml",
+      "scripts/after.js",
+      "scripts/check.ts",
+      "workspace/scripts/from-circle.js",
+    ]));
+    expect(gitlabCi).toEqual(expect.objectContaining({
+      activation: ["config-file"],
+      packages: ["@playwright/test", "eslint", "tsx"],
+    }));
+    expect(circleCi).toEqual(expect.objectContaining({
+      activation: ["config-file"],
+      packages: ["vitest"],
+    }));
+  });
+
   it("detects built-in plugin package usage from tool-specific CLI arguments", () => {
     const report = runJsonReport("plugin-project");
     const workspace = report.workspaces[0];

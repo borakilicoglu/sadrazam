@@ -2,8 +2,6 @@
 title: Real World Validation
 ---
 
-# Real World Validation
-
 ## Repositories Checked
 
 - `cli-ts-commander-starter` as a simple TypeScript app

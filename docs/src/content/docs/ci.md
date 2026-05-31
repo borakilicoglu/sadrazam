@@ -2,8 +2,6 @@
 title: CI and Releases
 ---
 
-# CI and Releases
-
 ## Exit Codes
 
 Sadrazam uses these exit codes:

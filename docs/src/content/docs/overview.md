@@ -3,8 +3,6 @@ title: Overview
 description: Dependency analysis CLI for JavaScript and TypeScript projects.
 ---
 
-# Sadrazam
-
 Sadrazam scans JavaScript and TypeScript projects for dependency and code-hygiene issues with a low-noise, deterministic output contract.
 
 It finds unused packages, missing package declarations, unresolved local imports, unused source files, unused reachable exports, and duplicate export aliases. AI summaries are optional and sit on top of the real scan findings.

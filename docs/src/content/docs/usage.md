@@ -2,8 +2,6 @@
 title: CLI Usage
 ---
 
-# CLI Usage
-
 ## Common Commands
 
 Scan the current directory:
@@ -151,12 +149,19 @@ Sadrazam enables built-in plugins from package declarations, scripts, and known 
     },
     "github-actions": {
       "config": ".github/workflows/*.yml"
+    },
+    "gitlab-ci": {
+      "config": ".gitlab-ci.yml"
+    },
+    "circleci": {
+      "config": ".circleci/config.yml"
     }
   }
 }
 ```
 
 The GitHub Actions plugin reads workflow and local action YAML files, parses `run` commands, respects step-level `working-directory`, and treats local node action scripts as entry files.
+The GitLab CI and CircleCI plugins read CI YAML command blocks and resolve direct tool calls plus package scripts such as `npm run lint`.
 
 ## Allowlist Flags
 

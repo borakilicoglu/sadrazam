@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Sadrazam logo</title>
+  <desc id="desc">A rounded periwinkle square containing a centered sharp geometric S monogram.</desc>
+  <defs>
+    <linearGradient id="bg" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a8b1ff"/>
+      <stop offset="1" stop-color="#8f99f5"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="url(#bg)"/>
+  <g transform="translate(16 8)">
+    <path fill="#fff" d="M356 146H216c-34 0-58 14-58 36 0 18 15 29 47 35l70 14c62 12 95 41 95 87 0 58-52 98-127 98H124v-64h119c34 0 58-13 58-35 0-18-15-29-47-35l-70-14c-62-12-95-42-95-89 0-58 52-97 127-97h140z"/>
+    <path fill="#dfe4ff" d="M356 146 124 416h90l232-270z" opacity="0.2"/>
+  </g>
+</svg>

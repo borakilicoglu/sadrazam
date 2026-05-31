@@ -2,8 +2,6 @@
 title: Beta Checklist
 ---
 
-# Beta Checklist
-
 ## Alpha to Beta
 
 - CLI flag surface is stable enough to avoid near-term breaking changes.

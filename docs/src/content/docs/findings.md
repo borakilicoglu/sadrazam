@@ -2,8 +2,6 @@
 title: Findings
 ---
 
-# Findings
-
 Sadrazam reports a small set of finding types so the output stays predictable in local runs and CI.
 
 ## Dependency findings

@@ -1,0 +1,11 @@
+before_script:
+  - npm run lint
+
+test:
+  script:
+    - pnpm exec tsx scripts/check.ts
+    - npx playwright test
+
+after:
+  after_script:
+    - node scripts/after.js

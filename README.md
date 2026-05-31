@@ -76,7 +76,7 @@ Unlike traditional tools:
 
 - detects unused dependencies AND unused files/exports
 - understands monorepos and modern frameworks
-- reads GitHub Actions workflows so CI-only tools are treated as used
+- reads GitHub Actions, GitLab CI, and CircleCI workflows so CI-only tools are treated as used
 - optional AI layer for real explanations (not raw output)
 - safe auto-fix for `package.json`
 
@@ -142,6 +142,12 @@ Plugin overrides live in `sadrazam.json` when automatic tool discovery needs hel
     "playwright": {
       "config": "config/playwright.config.ts",
       "entry": "integration/**/*.spec.ts"
+    },
+    "gitlab-ci": {
+      "config": ".gitlab-ci.yml"
+    },
+    "circleci": {
+      "config": ".circleci/config.yml"
     }
   }
 }

@@ -11,11 +11,17 @@ export default defineConfig({
       logo: {
         src: "./public/logo.svg",
       },
+      customCss: ["./src/styles/custom.css"],
       social: [
         {
           icon: "github",
           label: "GitHub",
           href: "https://github.com/borakilicoglu/sadrazam",
+        },
+        {
+          icon: "npm",
+          label: "npm",
+          href: "https://www.npmjs.com/package/sadrazam",
         },
       ],
       sidebar: [

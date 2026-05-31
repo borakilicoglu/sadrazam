@@ -2,8 +2,6 @@
 title: Config
 ---
 
-# Config
-
 Sadrazam loads config from either:
 
 - `sadrazam.json`
@@ -103,9 +101,15 @@ Sadrazam automatically enables built-in plugin analysis from package declaration
     },
     "github-actions": {
       "config": ".github/workflows/*.yml"
+    },
+    "gitlab-ci": {
+      "config": ".gitlab-ci.yml"
+    },
+    "circleci": {
+      "config": ".circleci/config.yml"
     }
   }
 }
 ```
 
-Supported built-in plugins currently cover Astro, Cypress, ESLint, GitHub Actions, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack.
+Supported built-in plugins currently cover Astro, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack.

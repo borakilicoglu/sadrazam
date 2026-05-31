@@ -2,8 +2,6 @@
 title: Stable Checklist
 ---
 
-# Stable Checklist
-
 ## Release blockers
 
 - `unused files` en az 2 gerçek projede güvenilir sonuç versin.

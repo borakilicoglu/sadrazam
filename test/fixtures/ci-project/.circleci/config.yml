@@ -1,0 +1,17 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/node:20.18
+    steps:
+      - checkout
+      - run: pnpm vitest run
+      - run:
+          command: node from-circle.js
+          working_directory: workspace/scripts
+
+workflows:
+  test:
+    jobs:
+      - test

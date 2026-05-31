@@ -2,8 +2,6 @@
 title: FAQ
 ---
 
-# FAQ
-
 ## Does Sadrazam require AI?
 
 No. AI is optional. The dependency scanner works without a token.

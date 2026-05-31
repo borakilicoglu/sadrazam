@@ -63,7 +63,7 @@ interface PluginDefinition {
     flag: string;
     normalize?: (value: string) => string;
   }>;
-  analyzeConfig?: (filePath: string) => Promise<PluginContribution | null>;
+  analyzeConfig?: (filePath: string, context: PluginContext) => Promise<PluginContribution | null>;
   analyzePackageJson?: (context: PluginContext) => PluginContribution | null;
   isEnabled?: (context: PluginContext, override: boolean | PluginConfig | undefined) => Promise<boolean>;
 }
@@ -150,6 +150,34 @@ const PLUGINS: PluginDefinition[] = [
       return (await collectFilesFromPatterns(context.packageDir, [".github/workflows/*.{yml,yaml}"])).length > 0;
     },
     analyzeConfig: analyzeGitHubActionsConfig,
+  },
+  {
+    ...createToolPlugin("gitlab-ci", [], [], [
+      ".gitlab-ci.yml",
+      ".gitlab-ci.yaml",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [".gitlab-ci.{yml,yaml}"])).length > 0;
+    },
+    analyzeConfig: analyzeGitLabCiConfig,
+  },
+  {
+    ...createToolPlugin("circleci", [], [], [
+      ".circleci/config.yml",
+      ".circleci/config.yaml",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [".circleci/config.{yml,yaml}"])).length > 0;
+    },
+    analyzeConfig: analyzeCircleCiConfig,
   },
 ];
 
@@ -308,7 +336,7 @@ async function collectPluginContribution(
 
   for (const filePath of await collectFilesFromPatterns(context.packageDir, configPatterns)) {
     fileEntries.add(filePath);
-    const configContribution = plugin.analyzeConfig ? await plugin.analyzeConfig(filePath) : null;
+    const configContribution = plugin.analyzeConfig ? await plugin.analyzeConfig(filePath, context) : null;
     mergeContribution(configContribution, packages, fileEntries, packageUsage);
   }
 
@@ -331,7 +359,7 @@ function collectScriptInvocations(scripts: Record<string, string>): ScriptInvoca
   const invocations: ScriptInvocation[] = [];
 
   for (const [scriptName, script] of Object.entries(scripts)) {
-    for (const segment of script.split(COMMAND_SPLIT_RE)) {
+    for (const segment of splitCommandSegments(script)) {
       const tokens = tokenize(segment);
       const command = resolveCommandName(tokens);
 
@@ -342,6 +370,14 @@ function collectScriptInvocations(scripts: Record<string, string>): ScriptInvoca
   }
 
   return invocations;
+}
+
+function splitCommandSegments(script: string): string[] {
+  return script
+    .split(/\r?\n/)
+    .flatMap((line) => line.split(COMMAND_SPLIT_RE))
+    .map((segment) => segment.trim())
+    .filter(Boolean);
 }
 
 interface ScriptInvocation {
@@ -440,7 +476,7 @@ async function resolveEntryPattern(packageDir: string, pattern: string): Promise
   });
 }
 
-async function analyzeEslintConfig(filePath: string): Promise<PluginContribution | null> {
+async function analyzeEslintConfig(filePath: string, _context: PluginContext): Promise<PluginContribution | null> {
   if (!filePath.endsWith(".json") && !filePath.endsWith(".eslintrc")) {
     return null;
   }
@@ -490,7 +526,7 @@ function analyzePrettierPackageJson(context: PluginContext): PluginContribution 
   };
 }
 
-async function analyzeTsConfig(filePath: string): Promise<PluginContribution | null> {
+async function analyzeTsConfig(filePath: string, _context: PluginContext): Promise<PluginContribution | null> {
   const config = await readJsonFile(filePath);
 
   if (!isRecord(config)) {
@@ -535,7 +571,7 @@ async function analyzeTsConfig(filePath: string): Promise<PluginContribution | n
     : null;
 }
 
-async function analyzeGitHubActionsConfig(filePath: string): Promise<PluginContribution | null> {
+async function analyzeGitHubActionsConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
   const config = await readYamlFile(filePath);
 
   if (!isRecord(config)) {
@@ -567,18 +603,209 @@ async function analyzeGitHubActionsConfig(filePath: string): Promise<PluginContr
         checkoutPath && workingDirectory === "." ? checkoutPath : workingDirectory,
       );
 
-      for (const invocation of collectScriptInvocations({ [path.relative(packageDir, filePath) || path.basename(filePath)]: step.run })) {
-        const commandPackage = getKnownCommandPackage(invocation.command, invocation.tokens);
+      mergeContribution(
+        await collectCiCommandContribution(step.run, {
+          context,
+          commandDir,
+          source: path.relative(packageDir, filePath) || path.basename(filePath),
+        }),
+        packages,
+        fileEntries,
+        packageUsage,
+      );
+    }
+  }
 
-        if (commandPackage) {
-          packages.add(commandPackage);
-          addUsage(packageUsage, commandPackage, path.relative(packageDir, filePath) || path.basename(filePath));
-        }
-
-        for (const filePath of await collectPositionalFiles(commandDir, invocation.tokens.slice(1))) {
-          fileEntries.add(filePath);
-        }
+  return fileEntries.size > 0 || packages.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
       }
+    : null;
+}
+
+async function analyzeGitLabCiConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const fileEntries = new Set<string>();
+  const packages = new Set<string>();
+  const packageUsage = new Map<string, Set<string>>();
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+
+  const pendingCommandBlocks = toGitLabCommandBlocks(config);
+
+  for (const command of pendingCommandBlocks) {
+    mergeContribution(
+      await collectCiCommandContribution(command, {
+        context,
+        commandDir: context.packageDir,
+        source,
+      }),
+      packages,
+      fileEntries,
+      packageUsage,
+    );
+  }
+
+  return fileEntries.size > 0 || packages.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
+}
+
+interface CiCommandOptions {
+  context: PluginContext;
+  commandDir: string;
+  source: string;
+  depth?: number;
+}
+
+async function collectCiCommandContribution(
+  command: string,
+  options: CiCommandOptions,
+): Promise<PluginContribution | null> {
+  const packages = new Set<string>();
+  const fileEntries = new Set<string>();
+  const packageUsage = new Map<string, Set<string>>();
+
+  for (const invocation of collectScriptInvocations({ [options.source]: command })) {
+    const commandPackage = getKnownCommandPackage(invocation.command, invocation.tokens);
+
+    if (commandPackage) {
+      packages.add(commandPackage);
+      addUsage(packageUsage, commandPackage, options.source);
+    }
+
+    const packageScript = resolvePackageScript(invocation.tokens);
+    if (packageScript && options.depth !== 2) {
+      const nestedScript = options.context.scripts[packageScript];
+      if (nestedScript) {
+        mergeContribution(
+          await collectCiCommandContribution(nestedScript, {
+            ...options,
+            commandDir: options.context.packageDir,
+            depth: (options.depth ?? 0) + 1,
+          }),
+          packages,
+          fileEntries,
+          packageUsage,
+        );
+      }
+    }
+
+    for (const filePath of await collectPositionalFiles(options.commandDir, invocation.tokens.slice(1))) {
+      fileEntries.add(filePath);
+    }
+  }
+
+  return fileEntries.size > 0 || packages.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
+}
+
+function toGitLabCommandBlocks(config: Record<string, unknown>): string[] {
+  const commandBlocks: string[] = [];
+
+  visitUnknown(config, (node) => {
+    if (!isRecord(node)) {
+      return;
+    }
+
+    for (const key of ["before_script", "script", "after_script"]) {
+      commandBlocks.push(...toCommandBlocks(node[key]));
+    }
+  });
+
+  return commandBlocks;
+}
+
+function toCommandBlocks(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(toCommandBlocks);
+  }
+
+  return [];
+}
+
+async function analyzeCircleCiConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const jobs = isRecord(config.jobs) ? config.jobs : {};
+  const fileEntries = new Set<string>();
+  const packages = new Set<string>();
+  const packageUsage = new Map<string, Set<string>>();
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+
+  for (const job of Object.values(jobs)) {
+    if (!isRecord(job)) {
+      continue;
+    }
+
+    const jobDir = typeof job.working_directory === "string"
+      ? path.resolve(context.packageDir, job.working_directory)
+      : context.packageDir;
+
+    for (const step of toUnknownArray(job.steps)) {
+      const runStep = isRecord(step) ? step.run : null;
+
+      if (typeof runStep === "string") {
+        mergeContribution(
+          await collectCiCommandContribution(runStep, {
+            context,
+            commandDir: jobDir,
+            source,
+          }),
+          packages,
+          fileEntries,
+          packageUsage,
+        );
+        continue;
+      }
+
+      if (!isRecord(runStep) || typeof runStep.command !== "string") {
+        continue;
+      }
+
+      const commandDir = typeof runStep.working_directory === "string"
+        ? path.resolve(context.packageDir, runStep.working_directory)
+        : jobDir;
+
+      mergeContribution(
+        await collectCiCommandContribution(runStep.command, {
+          context,
+          commandDir,
+          source,
+        }),
+        packages,
+        fileEntries,
+        packageUsage,
+      );
     }
   }
 
@@ -742,6 +969,20 @@ function resolveCommandName(tokens: string[]): string | null {
   }
 
   return command;
+}
+
+function resolvePackageScript(tokens: string[]): string | null {
+  const [first, second, third] = tokens.map((token) => stripQuotes(token));
+
+  if ((first === "npm" || first === "pnpm" || first === "yarn" || first === "bun") && second === "run") {
+    return third || null;
+  }
+
+  if ((first === "pnpm" || first === "yarn" || first === "bun") && second && !isPackageManagerLifecycleCommand(second)) {
+    return second;
+  }
+
+  return null;
 }
 
 function getKnownCommandPackage(command: string, _tokens: string[]): string | null {

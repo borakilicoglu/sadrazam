@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.1.15
+
+### Added
+- GitLab CI plugin scanning for `.gitlab-ci.yml` and `.gitlab-ci.yaml` command blocks
+- CircleCI plugin scanning for `.circleci/config.yml` and `.circleci/config.yaml` `run` steps
+- Google Sans Flex font styling for the documentation site
+
 ## v0.1.14
 
 ### Added

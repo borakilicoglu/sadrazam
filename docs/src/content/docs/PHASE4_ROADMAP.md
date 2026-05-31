@@ -2,8 +2,6 @@
 title: Phase 4 Roadmap
 ---
 
-# Phase 4 Roadmap
-
 ## Goals
 - Learn from real-world usage before adding broad new surface area.
 - Stabilize machine-readable output and remediation workflows.

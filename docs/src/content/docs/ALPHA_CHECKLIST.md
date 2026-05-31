@@ -2,8 +2,6 @@
 title: Alpha Checklist
 ---
 
-# Alpha Checklist
-
 Target release: `v0.1.0-alpha.1`
 
 ## Product readiness

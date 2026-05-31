@@ -1,8 +1,17 @@
 ---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+
 const base = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
 const href = (path) => `${base}${path.replace(/^\//, "")}`;
+
+const frontmatter = {
+  title: "Sadrazam",
+  description: "Dependency and code-hygiene analysis with deterministic output, low false positives, and agent-friendly reports.",
+  template: "splash" as const,
+  pagefind: false,
+};
 
 const featureCards = [
   {
@@ -33,267 +42,236 @@ const checks = [
 ];
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sadrazam | Dependency and code hygiene CLI</title>
-    <meta
-      name="description"
-      content="Sadrazam is a dependency and code-hygiene CLI for JavaScript and TypeScript projects."
-    />
-    <link rel="icon" href={href("logo.svg")} type="image/svg+xml" />
-  </head>
-  <body>
-    <header class="site-header">
-      <a class="brand" href={href("")} aria-label="Sadrazam home">
-        <img src={href("logo.svg")} alt="" width="34" height="34" />
-        <span>Sadrazam</span>
-      </a>
-      <nav aria-label="Primary navigation">
-        <a href={href("getting-started/")}>Docs</a>
-        <a href="https://www.npmjs.com/package/sadrazam">npm</a>
-        <a href="https://github.com/borakilicoglu/sadrazam">GitHub</a>
-      </nav>
-    </header>
-
-    <main>
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">JavaScript and TypeScript hygiene</p>
-          <h1>Sadrazam</h1>
-          <p class="lede">
-            Dependency and code-hygiene analysis with deterministic output, low false positives, and agent-friendly reports.
-          </p>
-          <div class="actions">
-            <a class="button primary" href={href("getting-started/")}>Get Started</a>
-            <a class="button secondary" href="https://github.com/borakilicoglu/sadrazam">View on GitHub</a>
-          </div>
-          <div class="badges" aria-label="Package links">
-            <img src="https://img.shields.io/npm/v/sadrazam?label=npm" alt="npm version" />
-            <img src="https://img.shields.io/npm/dt/sadrazam?label=downloads" alt="npm downloads" />
-            <img src="https://img.shields.io/github/stars/borakilicoglu/sadrazam?label=stars" alt="GitHub stars" />
+<StarlightPage frontmatter={frontmatter} hasSidebar={false}>
+  <div class="landing-shell">
+    <section class="landing-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Declutter your JavaScript & TypeScript projects</p>
+        <h1>Sadrazam</h1>
+        <p class="lede">
+          Dependency and code-hygiene analysis with deterministic output, low false positives, and agent-friendly reports.
+        </p>
+        <div class="actions">
+          <a class="hero-button primary" href={href("getting-started/")}>Get Started<span aria-hidden="true">→</span></a>
+          <div class="secondary-actions">
+            <a class="secondary-link" href="https://www.npmjs.com/package/sadrazam">View on npm</a>
+            <a class="secondary-link" href="https://github.com/borakilicoglu/sadrazam">View on GitHub</a>
           </div>
         </div>
+        <div class="badges" aria-label="Package links">
+          <span><img src="https://img.shields.io/npm/v/sadrazam?label=npm" alt="npm version" /></span>
+          <span><img src="https://img.shields.io/npm/dt/sadrazam?label=downloads" alt="npm downloads" /></span>
+          <span><img src="https://img.shields.io/npm/l/sadrazam?label=license" alt="MIT license" /></span>
+        </div>
+      </div>
 
-        <div class="terminal" aria-label="Sadrazam example output">
-          <div class="terminal-top">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <pre><code><span class="muted">$</span> npx sadrazam . --reporter toon
+      <section class="terminal" aria-label="Sadrazam example output">
+        <div class="terminal-top">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <pre><code><span class="muted">$</span> npx sadrazam . --reporter toon
 
 workspaces[1]:
   workspace:
     name=sadrazam
   summary:
     findings=0
-  findings[0]:
 
 <span class="ok">No dependency issues found.</span></code></pre>
-        </div>
       </section>
+    </section>
 
-      <section class="section split">
-        <div>
-          <p class="eyebrow">Why use it?</p>
-          <h2>Clean package.json and source graphs without guessing.</h2>
-        </div>
-        <p>
-          Sadrazam scans source files, scripts, package manifests, aliases, and framework files to report findings that are useful in local development and strict enough for CI.
-        </p>
-      </section>
+    <section class="section split">
+      <div>
+        <p class="eyebrow">Why use it?</p>
+        <h2>Clean package.json and source graphs without guessing.</h2>
+      </div>
+      <p>
+        Sadrazam scans source files, scripts, package manifests, aliases, and framework files to report findings that are useful in local development and strict enough for CI.
+      </p>
+    </section>
 
-      <section class="cards" aria-label="Sadrazam capabilities">
-        {featureCards.map((card) => (
-          <article>
-            <h3>{card.title}</h3>
-            <p>{card.text}</p>
-          </article>
-        ))}
-      </section>
+    <section class="cards" aria-label="Sadrazam capabilities">
+      {featureCards.map((card) => (
+        <article>
+          <h3>{card.title}</h3>
+          <p>{card.text}</p>
+        </article>
+      ))}
+    </section>
 
-      <section class="section checks">
-        <div>
-          <p class="eyebrow">Built for real repos</p>
-          <h2>Modern project support is part of the scanner.</h2>
-        </div>
-        <ul>
-          {checks.map((item) => <li>{item}</li>)}
-        </ul>
-      </section>
+    <section class="section checks">
+      <div>
+        <p class="eyebrow">Built for real repos</p>
+        <h2>Modern project support is part of the scanner.</h2>
+      </div>
+      <ul>
+        {checks.map((item) => <li>{item}</li>)}
+      </ul>
+    </section>
 
-      <section class="section cta">
-        <div>
-          <h2>Start with one scan.</h2>
-          <p>Run Sadrazam locally, then choose text, JSON, TOON, markdown, or SARIF output based on your workflow.</p>
-        </div>
-        <a class="button primary" href={href("usage/")}>Read CLI Usage</a>
-      </section>
-    </main>
-  </body>
-</html>
+    <section class="section cta">
+      <div>
+        <h2>Start with one scan.</h2>
+        <p>Run Sadrazam locally, then choose text, JSON, TOON, markdown, or SARIF output based on your workflow.</p>
+      </div>
+      <a class="sl-link-button primary" href={href("usage/")}>Read CLI Usage</a>
+    </section>
+
+    <footer class="landing-footer">
+      <span>MIT License</span>
+      <span>© 2026</span>
+      <span>Sadrazam</span>
+    </footer>
+  </div>
+</StarlightPage>
 
 <style>
-  :root {
-    color-scheme: dark;
-    font-family:
-      Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0d1117;
-    color: #f3f4f6;
+  :global(:root) {
+    --sl-content-width: 72rem;
   }
 
-  * {
-    box-sizing: border-box;
+  :global(main > .content-panel:first-of-type) {
+    display: none;
   }
 
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background:
-      linear-gradient(180deg, rgba(13, 17, 23, 0.92), #0d1117 34rem),
-      url("https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1800&q=80");
-    background-position: center top;
-    background-size: cover;
-    background-attachment: fixed;
+  :global(main > .content-panel:nth-of-type(2)) {
+    padding-top: 0;
+    border-top: 0;
   }
 
-  a {
-    color: inherit;
-    text-decoration: none;
+  :global(main > .content-panel:nth-of-type(2) > .sl-container > footer) {
+    display: none;
   }
 
-  .site-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem clamp(1.25rem, 4vw, 4rem);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-    background: rgba(13, 17, 23, 0.82);
-    backdrop-filter: blur(18px);
+  .landing-shell {
+    max-width: 72rem;
+    margin-inline: auto;
   }
 
-  .brand,
-  nav,
-  .actions,
-  .badges {
-    display: flex;
-    align-items: center;
-  }
-
-  .brand {
-    gap: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0;
-  }
-
-  .brand img {
-    border-radius: 8px;
-  }
-
-  nav {
-    gap: clamp(0.85rem, 2vw, 1.5rem);
-    color: #c9d1d9;
-    font-size: 0.95rem;
-  }
-
-  nav a:hover {
-    color: #ffffff;
-  }
-
-  main {
-    width: min(1180px, calc(100% - 2rem));
-    margin: 0 auto;
-  }
-
-  .hero {
+  .landing-hero {
     display: grid;
     grid-template-columns: minmax(0, 1.02fr) minmax(22rem, 0.78fr);
     gap: clamp(2rem, 5vw, 5rem);
     align-items: center;
-    min-height: calc(100vh - 4.5rem);
-    padding: clamp(4rem, 8vw, 7rem) 0;
+    min-height: min(42rem, calc(100vh - var(--sl-nav-height) - 3rem));
+    padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 6vw, 5rem);
   }
 
-  .eyebrow {
-    margin: 0 0 0.9rem;
-    color: #a8b1ff;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  h1,
-  h2,
-  h3,
-  p {
-    margin-top: 0;
+  .hero-copy {
+    min-width: 0;
   }
 
   h1 {
-    margin-bottom: 1rem;
-    font-size: clamp(4.2rem, 12vw, 8.25rem);
+    margin: 0 0 1rem;
+    font-size: clamp(4.2rem, 10vw, 7.25rem);
     line-height: 0.9;
     letter-spacing: 0;
   }
 
   .lede {
     max-width: 43rem;
-    color: #e5e7eb;
+    color: var(--sl-color-gray-2);
     font-size: clamp(1.18rem, 2.2vw, 1.6rem);
     line-height: 1.55;
   }
 
   .actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     flex-wrap: wrap;
     gap: 0.85rem;
     margin-top: 2rem;
   }
 
-  .button {
+  .hero-button {
     display: inline-flex;
     align-items: center;
-    min-height: 2.75rem;
-    border-radius: 8px;
-    padding: 0.72rem 1rem;
-    font-weight: 800;
+    justify-content: center;
+    gap: 1.15rem;
+    min-height: 3.35rem;
+    border: 2px solid var(--sl-color-white);
+    border-radius: 999px;
+    padding: 0.72rem 1.45rem;
+    color: var(--sl-color-white);
+    font-size: clamp(0.95rem, 1.25vw, 1.12rem);
+    font-weight: 650;
+    line-height: 1;
+    text-decoration: none;
   }
 
-  .primary {
-    border: 1px solid rgba(223, 228, 255, 0.55);
+  .hero-button.primary {
+    border-color: #a8b1ff;
     background: linear-gradient(135deg, #a8b1ff 0%, #8f99f5 100%);
     color: #0d1117;
-    box-shadow: 0 12px 34px rgba(143, 153, 245, 0.32);
   }
 
-  .secondary {
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.08);
+  .secondary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .secondary-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    color: var(--sl-color-gray-2);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+  }
+
+  .secondary-link:hover,
+  .secondary-link:focus-visible {
+    color: var(--sl-color-accent-high);
+  }
+
+  .hero-button span {
+    font-size: 1.45em;
+    line-height: 1;
+    transition: transform 150ms ease;
+  }
+
+  .hero-button:hover,
+  .hero-button:focus-visible {
     color: #ffffff;
+    text-decoration: none;
+  }
+
+  .hero-button:hover span,
+  .hero-button:focus-visible span {
+    transform: translateX(0.18rem);
   }
 
   .badges {
+    display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0.55rem;
     margin-top: 1.35rem;
   }
 
+  .badges span {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    line-height: 0;
+  }
+
   .badges img {
+    display: block;
     height: 22px;
   }
 
   .terminal {
-    border: 1px solid rgba(255, 255, 255, 0.13);
+    border: 1px solid var(--sl-color-gray-5);
     border-radius: 8px;
-    background: rgba(3, 7, 18, 0.88);
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    background: var(--sl-color-black);
+    box-shadow: var(--sl-shadow-lg);
     overflow: hidden;
   }
 
@@ -301,44 +279,45 @@ workspaces[1]:
     display: flex;
     gap: 0.5rem;
     padding: 0.85rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    background: color-mix(in srgb, var(--sl-color-gray-6), transparent 35%);
   }
 
   .terminal-top span {
     width: 0.72rem;
     height: 0.72rem;
     border-radius: 999px;
-    background: #8f99f5;
+    background: var(--sl-color-accent);
   }
 
   .terminal-top span:nth-child(2) {
-    background: #a8b1ff;
+    background: var(--sl-color-accent-high);
   }
 
   .terminal-top span:nth-child(3) {
-    background: #dfe4ff;
+    background: var(--sl-color-gray-2);
   }
 
   pre {
     margin: 0;
     padding: clamp(1.2rem, 3vw, 2rem);
     overflow: auto;
-    color: #d1d5db;
+    color: var(--sl-color-gray-2);
     font-size: clamp(0.82rem, 1.5vw, 0.98rem);
     line-height: 1.65;
   }
 
   code {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-family: var(--__sl-font-mono);
   }
 
   .muted {
-    color: #8b949e;
+    color: var(--sl-color-gray-3);
   }
 
-  .ok {
-    color: #a8b1ff;
+  .ok,
+  .eyebrow {
+    color: var(--sl-color-accent-high);
   }
 
   .section,
@@ -352,23 +331,44 @@ workspaces[1]:
     display: grid;
     grid-template-columns: 0.9fr 1.1fr;
     gap: clamp(1.5rem, 4vw, 4rem);
-    align-items: start;
     padding: clamp(2rem, 5vw, 4rem) 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .split,
+  .checks {
+    align-items: center;
+  }
+
+  .cta {
+    align-items: center;
+  }
+
+  .eyebrow {
+    margin: 0 0 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
 
   h2 {
     max-width: 42rem;
-    margin-bottom: 0;
-    font-size: clamp(2rem, 4vw, 3.6rem);
+    margin: 0;
+    font-size: clamp(2rem, 3.2vw, 3rem);
     line-height: 1.05;
     letter-spacing: 0;
+  }
+
+  h3,
+  p {
+    margin-top: 0;
   }
 
   .section p,
   .cards p,
   .checks li {
-    color: #c9d1d9;
+    color: var(--sl-color-gray-2);
     font-size: 1.03rem;
     line-height: 1.65;
   }
@@ -376,15 +376,24 @@ workspaces[1]:
   .cards {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
     gap: 1rem;
   }
 
-  article {
+  .cards article {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     min-height: 13rem;
-    border: 1px solid rgba(255, 255, 255, 0.11);
+    border: 1px solid var(--sl-color-gray-5);
     border-radius: 8px;
     padding: 1.25rem;
-    background: rgba(13, 17, 23, 0.76);
+    background: var(--sl-color-bg-nav);
+  }
+
+  .cards article,
+  .cards article:first-child {
+    margin: 0;
   }
 
   h3 {
@@ -402,9 +411,9 @@ workspaces[1]:
   }
 
   .checks li {
-    border-left: 3px solid #a8b1ff;
+    border-left: 3px solid var(--sl-color-accent);
     padding: 0.65rem 0 0.65rem 0.85rem;
-    background: rgba(255, 255, 255, 0.045);
+    background: color-mix(in srgb, var(--sl-color-accent), transparent 90%);
   }
 
   .cta {
@@ -417,20 +426,28 @@ workspaces[1]:
     margin-bottom: 0;
   }
 
-  @media (max-width: 900px) {
-    .site-header {
-      align-items: flex-start;
-      flex-direction: column;
-    }
+  .landing-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    padding: 1.25rem 0 0;
+    color: var(--sl-color-gray-3);
+    font-size: 0.95rem;
+  }
 
-    .hero,
+
+  @media (max-width: 900px) {
+    .landing-hero,
     .split,
     .checks,
     .cta {
       grid-template-columns: 1fr;
     }
 
-    .hero {
+    .landing-hero {
       min-height: auto;
       padding-top: 3rem;
     }
@@ -438,26 +455,6 @@ workspaces[1]:
     .cards,
     .checks ul {
       grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 560px) {
-    main {
-      width: min(100% - 1.25rem, 1180px);
-    }
-
-    nav {
-      width: 100%;
-      justify-content: space-between;
-    }
-
-    h1 {
-      font-size: clamp(3.4rem, 21vw, 4.8rem);
-    }
-
-    .button {
-      justify-content: center;
-      width: 100%;
     }
   }
 </style>
