@@ -16,35 +16,33 @@ const frontmatter = {
 const featureCards = [
   {
     title: "Dependency hygiene",
-    text: "Find unused dependencies, missing package declarations, and misplaced devDependencies.",
+    text: "Find unused dependencies, missing packages, and misplaced devDependencies without broad guessing.",
   },
   {
-    title: "Code reachability",
-    text: "Report unused files, unused exports, and definitely unresolved local imports.",
+    title: "Reachability analysis",
+    text: "Trace unused files, unused exports, duplicate aliases, and unresolved local imports through real source graphs.",
   },
   {
-    title: "Machine output",
-    text: "Use JSON, TOON, markdown, or SARIF reports in local workflows, CI, and agents.",
+    title: "CI-aware usage",
+    text: "Read GitHub Actions, GitLab CI, and CircleCI commands so CI-only tools are counted as used.",
   },
   {
-    title: "Safe cleanup",
-    text: "Apply conservative package.json fixes and keep scan behavior deterministic.",
+    title: "Agent output",
+    text: "Use JSON, TOON, markdown, or SARIF when humans, CI jobs, and agents need stable contracts.",
   },
 ];
 
-const checks = [
-  "OXC-backed parser and resolver",
-  "CommonJS and modern import support",
-  "TypeScript path aliases and package imports",
-  "Workspace and monorepo scanning",
-  "Framework source files for Astro, Vue, Svelte, MDX",
-  "Low false-positive finding contracts",
+const pluginRows = [
+  ["Frontend", "Astro, Next, SvelteKit, Vite, webpack, Rollup"],
+  ["Testing", "Vitest, Jest, Playwright, Cypress, Storybook"],
+  ["Quality", "ESLint, Prettier, Tailwind, TypeScript"],
+  ["CI", "GitHub Actions, GitLab CI, CircleCI"],
 ];
 ---
 
 <StarlightPage frontmatter={frontmatter} hasSidebar={false}>
   <div class="landing-shell">
-    <section class="landing-hero">
+    <section class="hero">
       <div class="hero-copy">
         <p class="eyebrow">Declutter your JavaScript & TypeScript projects</p>
         <h1>Sadrazam</h1>
@@ -52,13 +50,13 @@ const checks = [
           Dependency and code-hygiene analysis with deterministic output, low false positives, and agent-friendly reports.
         </p>
         <div class="actions">
-          <a class="hero-button primary" href={href("getting-started/")}>Get Started<span aria-hidden="true">→</span></a>
+          <a class="hero-button" href={href("getting-started/")}>Let's Get Started<span aria-hidden="true">→</span></a>
           <div class="secondary-actions">
-            <a class="secondary-link" href="https://www.npmjs.com/package/sadrazam">View on npm</a>
-            <a class="secondary-link" href="https://github.com/borakilicoglu/sadrazam">View on GitHub</a>
+            <a href="https://www.npmjs.com/package/sadrazam">View on npm</a>
+            <a href="https://github.com/borakilicoglu/sadrazam">View on GitHub</a>
           </div>
         </div>
-        <div class="badges" aria-label="Package links">
+        <div class="badges" aria-label="Package badges">
           <span><img src="https://img.shields.io/npm/v/sadrazam?label=npm" alt="npm version" /></span>
           <span><img src="https://img.shields.io/npm/dt/sadrazam?label=downloads" alt="npm downloads" /></span>
           <span><img src="https://img.shields.io/npm/l/sadrazam?label=license" alt="MIT license" /></span>
@@ -77,19 +75,20 @@ workspaces[1]:
   workspace:
     name=sadrazam
   summary:
+    activePlugins=[github-actions, gitlab-ci, circleci]
     findings=0
 
 <span class="ok">No dependency issues found.</span></code></pre>
       </section>
     </section>
 
-    <section class="section split">
+    <section class="section intro">
       <div>
         <p class="eyebrow">Why use it?</p>
         <h2>Clean package.json and source graphs without guessing.</h2>
       </div>
       <p>
-        Sadrazam scans source files, scripts, package manifests, aliases, and framework files to report findings that are useful in local development and strict enough for CI.
+        Sadrazam scans source files, scripts, package manifests, aliases, framework conventions, and CI workflows to report findings that are useful locally and strict enough for automation.
       </p>
     </section>
 
@@ -102,14 +101,19 @@ workspaces[1]:
       ))}
     </section>
 
-    <section class="section checks">
+    <section class="section plugin-section">
       <div>
         <p class="eyebrow">Built for real repos</p>
         <h2>Modern project support is part of the scanner.</h2>
       </div>
-      <ul>
-        {checks.map((item) => <li>{item}</li>)}
-      </ul>
+      <div class="plugin-table" role="table" aria-label="Supported scanner groups">
+        {pluginRows.map(([group, tools]) => (
+          <div class="plugin-row" role="row">
+            <strong role="cell">{group}</strong>
+            <span role="cell">{tools}</span>
+          </div>
+        ))}
+      </div>
     </section>
 
     <section class="section cta">
@@ -151,17 +155,13 @@ workspaces[1]:
     margin-inline: auto;
   }
 
-  .landing-hero {
+  .hero {
     display: grid;
     grid-template-columns: minmax(0, 1.02fr) minmax(22rem, 0.78fr);
     gap: clamp(2rem, 5vw, 5rem);
     align-items: center;
     min-height: min(42rem, calc(100vh - var(--sl-nav-height) - 3rem));
     padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 6vw, 5rem);
-  }
-
-  .hero-copy {
-    min-width: 0;
   }
 
   h1 {
@@ -180,10 +180,9 @@ workspaces[1]:
 
   .actions {
     display: flex;
-    flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.85rem;
+    gap: 0.95rem;
     margin-top: 2rem;
   }
 
@@ -191,43 +190,17 @@ workspaces[1]:
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 1.15rem;
+    gap: 1rem;
     min-height: 3.35rem;
-    border: 2px solid var(--sl-color-white);
+    border: 2px solid #a8b1ff;
     border-radius: 999px;
     padding: 0.72rem 1.45rem;
-    color: var(--sl-color-white);
+    background: linear-gradient(135deg, #a8b1ff 0%, #8f99f5 100%);
+    color: #0d1117;
     font-size: clamp(0.95rem, 1.25vw, 1.12rem);
     font-weight: 650;
     line-height: 1;
     text-decoration: none;
-  }
-
-  .hero-button.primary {
-    border-color: #a8b1ff;
-    background: linear-gradient(135deg, #a8b1ff 0%, #8f99f5 100%);
-    color: #0d1117;
-  }
-
-  .secondary-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .secondary-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 1.75rem;
-    color: var(--sl-color-gray-2);
-    font-weight: 500;
-    text-decoration: underline;
-    text-underline-offset: 0.22em;
-  }
-
-  .secondary-link:hover,
-  .secondary-link:focus-visible {
-    color: var(--sl-color-accent-high);
   }
 
   .hero-button span {
@@ -238,13 +211,31 @@ workspaces[1]:
 
   .hero-button:hover,
   .hero-button:focus-visible {
-    color: #ffffff;
+    color: #0d1117;
     text-decoration: none;
   }
 
   .hero-button:hover span,
   .hero-button:focus-visible span {
     transform: translateX(0.18rem);
+  }
+
+  .secondary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .secondary-actions a {
+    color: var(--sl-color-gray-2);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+  }
+
+  .secondary-actions a:hover,
+  .secondary-actions a:focus-visible {
+    color: var(--sl-color-accent-high);
   }
 
   .badges {
@@ -322,25 +313,20 @@ workspaces[1]:
 
   .section,
   .cards {
-    margin: 0 0 clamp(2.5rem, 7vw, 5rem);
+    margin: 0 0 clamp(2.75rem, 7vw, 5rem);
   }
 
-  .split,
-  .checks,
+  .section {
+    border-top: 1px solid var(--sl-color-gray-5);
+    padding-top: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .intro,
+  .plugin-section,
   .cta {
     display: grid;
     grid-template-columns: 0.9fr 1.1fr;
     gap: clamp(1.5rem, 4vw, 4rem);
-    padding: clamp(2rem, 5vw, 4rem) 0;
-    border-top: 1px solid var(--sl-color-gray-5);
-  }
-
-  .split,
-  .checks {
-    align-items: center;
-  }
-
-  .cta {
     align-items: center;
   }
 
@@ -365,9 +351,10 @@ workspaces[1]:
     margin-top: 0;
   }
 
-  .section p,
+  .intro p,
   .cards p,
-  .checks li {
+  .cta p,
+  .plugin-row span {
     color: var(--sl-color-gray-2);
     font-size: 1.03rem;
     line-height: 1.65;
@@ -378,6 +365,7 @@ workspaces[1]:
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: stretch;
     gap: 1rem;
+    margin-bottom: clamp(3.75rem, 8vw, 6rem);
   }
 
   .cards article {
@@ -401,24 +389,30 @@ workspaces[1]:
     font-size: 1.05rem;
   }
 
-  .checks ul {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.8rem;
-    padding: 0;
-    margin: 0;
-    list-style: none;
+  .plugin-table {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--sl-color-bg-nav);
   }
 
-  .checks li {
-    border-left: 3px solid var(--sl-color-accent);
-    padding: 0.65rem 0 0.65rem 0.85rem;
-    background: color-mix(in srgb, var(--sl-color-accent), transparent 90%);
+  .plugin-row {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .plugin-row + .plugin-row {
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .plugin-row strong {
+    color: var(--sl-color-white);
   }
 
   .cta {
-    align-items: center;
-    padding-bottom: clamp(4rem, 9vw, 7rem);
+    padding-bottom: clamp(3rem, 7vw, 5rem);
   }
 
   .cta p {
@@ -438,22 +432,24 @@ workspaces[1]:
     font-size: 0.95rem;
   }
 
-
   @media (max-width: 900px) {
-    .landing-hero,
-    .split,
-    .checks,
+    .hero,
+    .intro,
+    .plugin-section,
     .cta {
       grid-template-columns: 1fr;
     }
 
-    .landing-hero {
+    .hero {
       min-height: auto;
       padding-top: 3rem;
     }
 
-    .cards,
-    .checks ul {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+
+    .plugin-row {
       grid-template-columns: 1fr;
     }
   }
