@@ -76,6 +76,7 @@ Unlike traditional tools:
 
 - detects unused dependencies AND unused files/exports
 - understands package workspaces, Lerna, Rush, and modern frameworks
+- reads common tool configs such as Babel, PostCSS, Commitlint, lint-staged, and Husky hooks
 - reads GitHub Actions, GitLab CI, CircleCI, Azure Pipelines, and Bitbucket Pipelines workflows so CI-only tools are treated as used
 - optional AI layer for real explanations (not raw output)
 - safe auto-fix for `package.json`

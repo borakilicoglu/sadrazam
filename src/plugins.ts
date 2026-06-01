@@ -61,10 +61,10 @@ interface PluginDefinition {
   configFlags?: string[];
   packageFlags?: Array<{
     flag: string;
-    normalize?: (value: string) => string;
+    normalize?: (value: string) => string | string[] | null;
   }>;
   analyzeConfig?: (filePath: string, context: PluginContext) => Promise<PluginContribution | null>;
-  analyzePackageJson?: (context: PluginContext) => PluginContribution | null;
+  analyzePackageJson?: (context: PluginContext) => PluginContribution | Promise<PluginContribution | null> | null;
   isEnabled?: (context: PluginContext, override: boolean | PluginConfig | undefined) => Promise<boolean>;
 }
 
@@ -123,6 +123,105 @@ const PLUGINS: PluginDefinition[] = [
     ]),
     packageFlags: [{ flag: "--plugin" }],
     analyzePackageJson: analyzePrettierPackageJson,
+  },
+  {
+    ...createToolPlugin("babel", ["babel"], ["@babel/cli"], [
+      `babel.config.${CONFIG_EXTENSIONS}`,
+      ".babelrc",
+      ".babelrc.{json,jsonc}",
+    ]),
+    packageFlags: [
+      { flag: "--plugins", normalize: normalizeBabelPluginList },
+      { flag: "--presets", normalize: normalizeBabelPresetList },
+    ],
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return Boolean(context.packageJson.babel)
+        || (await collectFilesFromPatterns(context.packageDir, [
+          `babel.config.${CONFIG_EXTENSIONS}`,
+          ".babelrc",
+          ".babelrc.{json,jsonc}",
+        ])).length > 0;
+    },
+    analyzeConfig: analyzeBabelConfig,
+    analyzePackageJson: analyzeBabelPackageJson,
+  },
+  {
+    ...createToolPlugin("postcss", ["postcss"], ["postcss"], [
+      "postcss.config.{js,cjs,mjs,ts,cts,mts}",
+      ".postcssrc",
+      ".postcssrc.{json,jsonc,yml,yaml}",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [
+        "postcss.config.{js,cjs,mjs,ts,cts,mts}",
+        ".postcssrc",
+        ".postcssrc.{json,jsonc,yml,yaml}",
+      ])).length > 0;
+    },
+    analyzeConfig: analyzePostCssConfig,
+  },
+  {
+    ...createToolPlugin("commitlint", ["commitlint"], ["@commitlint/cli"], [
+      `commitlint.config.${CONFIG_EXTENSIONS}`,
+      ".commitlintrc",
+      ".commitlintrc.{json,jsonc,yml,yaml}",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return Boolean(context.packageJson.commitlint)
+        || (await collectFilesFromPatterns(context.packageDir, [
+          `commitlint.config.${CONFIG_EXTENSIONS}`,
+          ".commitlintrc",
+          ".commitlintrc.{json,jsonc,yml,yaml}",
+        ])).length > 0;
+    },
+    analyzeConfig: analyzeCommitlintConfig,
+    analyzePackageJson: analyzeCommitlintPackageJson,
+  },
+  {
+    ...createToolPlugin("lint-staged", ["lint-staged"], ["lint-staged"], [
+      "lint-staged.config.{js,cjs,mjs,ts,cts,mts}",
+      ".lintstagedrc",
+      ".lintstagedrc.{json,jsonc,yml,yaml}",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return Boolean(context.packageJson["lint-staged"])
+        || (await collectFilesFromPatterns(context.packageDir, [
+          "lint-staged.config.{js,cjs,mjs,ts,cts,mts}",
+          ".lintstagedrc",
+          ".lintstagedrc.{json,jsonc,yml,yaml}",
+        ])).length > 0;
+    },
+    analyzeConfig: analyzeLintStagedConfig,
+    analyzePackageJson: analyzeLintStagedPackageJson,
+  },
+  {
+    ...createToolPlugin("husky", ["husky"], ["husky"], [
+      ".husky/*",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [".husky/*"])).length > 0;
+    },
+    analyzeConfig: analyzeHuskyHook,
   },
   {
     ...createToolPlugin("tailwind", ["tailwindcss"], ["tailwindcss"], [
@@ -440,7 +539,7 @@ async function collectPluginContribution(
     fileEntries.add(filePath);
   }
 
-  mergeContribution(plugin.analyzePackageJson?.(context) ?? null, packages, fileEntries, packageUsage);
+  mergeContribution(plugin.analyzePackageJson ? await plugin.analyzePackageJson(context) : null, packages, fileEntries, packageUsage);
 
   return {
     packages: [...packages].sort(),
@@ -497,7 +596,10 @@ function collectPackagesFromFlags(
       continue;
     }
 
-    packages.push({ name: flag.normalize ? flag.normalize(next) : next });
+    const normalized = flag.normalize ? flag.normalize(next) : next;
+    for (const packageName of toArray(normalized)) {
+      packages.push({ name: packageName });
+    }
     index += 1;
   }
 
@@ -620,6 +722,160 @@ function analyzePrettierPackageJson(context: PluginContext): PluginContribution 
   return {
     packages: [...new Set(prettierConfig.plugins ?? [])],
   };
+}
+
+async function analyzeBabelConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readStructuredConfig(filePath);
+  return isRecord(config) ? collectBabelConfigContribution(config, context) : null;
+}
+
+function analyzeBabelPackageJson(context: PluginContext): PluginContribution | null {
+  const config = context.packageJson.babel;
+  return isRecord(config) ? collectBabelConfigContribution(config, context) : null;
+}
+
+function collectBabelConfigContribution(config: Record<string, unknown>, context: PluginContext): PluginContribution | null {
+  const packages = new Set<string>();
+
+  addIfDeclared(packages, context, "@babel/core");
+
+  for (const value of toBabelConfigItems(config.plugins)) {
+    const packageName = normalizeBabelPlugin(value);
+    if (packageName) {
+      packages.add(packageName);
+    }
+  }
+
+  for (const value of toBabelConfigItems(config.presets)) {
+    const packageName = normalizeBabelPreset(value);
+    if (packageName) {
+      packages.add(packageName);
+    }
+  }
+
+  return packages.size > 0 ? { packages: [...packages].sort() } : null;
+}
+
+async function analyzePostCssConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readStructuredConfig(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const packages = new Set<string>();
+  addIfDeclared(packages, context, "postcss");
+
+  for (const packageName of collectPostCssPlugins(config.plugins)) {
+    packages.add(packageName);
+  }
+
+  return packages.size > 0 ? { packages: [...packages].sort() } : null;
+}
+
+async function analyzeCommitlintConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readStructuredConfig(filePath);
+  return isRecord(config) ? collectCommitlintConfigContribution(config, context) : null;
+}
+
+function analyzeCommitlintPackageJson(context: PluginContext): PluginContribution | null {
+  const config = context.packageJson.commitlint;
+  return isRecord(config) ? collectCommitlintConfigContribution(config, context) : null;
+}
+
+function collectCommitlintConfigContribution(config: Record<string, unknown>, context: PluginContext): PluginContribution | null {
+  const packages = new Set<string>();
+
+  addIfDeclared(packages, context, "@commitlint/cli");
+
+  for (const value of toArray(config.extends)) {
+    const packageName = normalizeCommitlintConfig(value);
+    if (packageName) {
+      packages.add(packageName);
+    }
+  }
+
+  if (typeof config.parserPreset === "string") {
+    packages.add(getPackageName(config.parserPreset));
+  }
+
+  for (const value of toArray(config.plugins)) {
+    const packageName = normalizeCommitlintPlugin(value);
+    if (packageName) {
+      packages.add(packageName);
+    }
+  }
+
+  return packages.size > 0 ? { packages: [...packages].sort() } : null;
+}
+
+async function analyzeLintStagedConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readStructuredConfig(filePath);
+  return config ? collectLintStagedConfigContribution(config, context, path.relative(context.packageDir, filePath) || path.basename(filePath)) : null;
+}
+
+async function analyzeLintStagedPackageJson(context: PluginContext): Promise<PluginContribution | null> {
+  const config = context.packageJson["lint-staged"];
+  return config ? collectLintStagedConfigContribution(config, context, "package.json#lint-staged") : null;
+}
+
+async function collectLintStagedConfigContribution(
+  config: unknown,
+  context: PluginContext,
+  source: string,
+): Promise<PluginContribution | null> {
+  const commandBlocks = collectLintStagedCommands(config).map((command) => ({
+    command,
+    commandDir: context.packageDir,
+  }));
+  const contribution = await collectCiCommandsContribution(commandBlocks, context, source);
+  const packages = new Set(contribution?.packages ?? []);
+  const fileEntries = new Set(contribution?.fileEntries ?? []);
+  const packageUsage = new Map<string, Set<string>>(
+    Object.entries(contribution?.packageUsage ?? {}).map(([packageName, sources]) => [packageName, new Set(sources)] as const),
+  );
+
+  addIfDeclared(packages, context, "lint-staged");
+
+  return packages.size > 0 || fileEntries.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
+}
+
+async function analyzeHuskyHook(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  if (path.basename(filePath) === "_") {
+    return null;
+  }
+
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+  const contribution = await collectCiCommandContribution(await readFile(filePath, "utf8"), {
+    context,
+    commandDir: context.packageDir,
+    source,
+  });
+  const packages = new Set(contribution?.packages ?? []);
+  const fileEntries = new Set(contribution?.fileEntries ?? []);
+  const packageUsage = new Map<string, Set<string>>(
+    Object.entries(contribution?.packageUsage ?? {}).map(([packageName, sources]) => [packageName, new Set(sources)] as const),
+  );
+
+  addIfDeclared(packages, context, "husky");
+
+  return packages.size > 0 || fileEntries.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
 }
 
 async function analyzeTsConfig(filePath: string, _context: PluginContext): Promise<PluginContribution | null> {
@@ -1097,6 +1353,18 @@ function resolveTsConfigReference(baseDir: string, value: string): string {
   return path.extname(resolved) ? resolved : path.join(resolved, "tsconfig.json");
 }
 
+async function readStructuredConfig(filePath: string): Promise<unknown> {
+  if (/\.(ya?ml)$/i.test(filePath)) {
+    return readYamlFile(filePath);
+  }
+
+  if (/\.(c?m?[jt]s)$/i.test(filePath)) {
+    return null;
+  }
+
+  return readJsonFile(filePath);
+}
+
 async function readYamlFile(filePath: string): Promise<unknown> {
   try {
     return parseYaml(await readFile(filePath, "utf8"));
@@ -1191,11 +1459,17 @@ function resolvePackageScript(tokens: string[]): string | null {
 
 function getKnownCommandPackage(command: string, _tokens: string[]): string | null {
   const commandPackages: Record<string, string> = {
+    babel: "@babel/cli",
     changeset: "@changesets/cli",
+    commitlint: "@commitlint/cli",
     eslint: "eslint",
+    husky: "husky",
     knip: "knip",
+    "lint-staged": "lint-staged",
     nyc: "nyc",
     playwright: "@playwright/test",
+    postcss: "postcss-cli",
+    prettier: "prettier",
     prisma: "prisma",
     "release-it": "release-it",
     semgrep: "semgrep",
@@ -1244,6 +1518,173 @@ function visitUnknown(value: unknown, visitor: (value: unknown) => void): void {
       visitUnknown(item, visitor);
     }
   }
+}
+
+function addIfDeclared(packages: Set<string>, context: PluginContext, packageName: string): void {
+  if (context.dependencyNames.has(packageName)) {
+    packages.add(packageName);
+  }
+}
+
+function toBabelConfigItems(value: unknown): string[] {
+  const items: string[] = [];
+
+  for (const item of toUnknownArray(value)) {
+    if (typeof item === "string") {
+      items.push(item);
+      continue;
+    }
+
+    if (Array.isArray(item) && typeof item[0] === "string") {
+      items.push(item[0]);
+    }
+  }
+
+  return items;
+}
+
+function normalizeBabelPluginList(value: string): string[] {
+  return value.split(",").map((entry) => normalizeBabelPlugin(entry.trim())).filter((entry): entry is string => Boolean(entry));
+}
+
+function normalizeBabelPresetList(value: string): string[] {
+  return value.split(",").map((entry) => normalizeBabelPreset(entry.trim())).filter((entry): entry is string => Boolean(entry));
+}
+
+function normalizeBabelPlugin(value: string): string | null {
+  const normalized = stripModulePrefix(stripQuotes(value));
+
+  if (!normalized || isLocalStyleReference(normalized)) {
+    return null;
+  }
+
+  if (normalized.startsWith("@babel/plugin-") || normalized.startsWith("babel-plugin-")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("@babel/")) {
+    const suffix = normalized.slice("@babel/".length);
+    return suffix.startsWith("plugin-") ? normalized : `@babel/plugin-${suffix}`;
+  }
+
+  if (normalized.startsWith("@")) {
+    return getPackageName(normalized);
+  }
+
+  return `babel-plugin-${normalized}`;
+}
+
+function normalizeBabelPreset(value: string): string | null {
+  const normalized = stripModulePrefix(stripQuotes(value));
+
+  if (!normalized || isLocalStyleReference(normalized)) {
+    return null;
+  }
+
+  if (normalized.startsWith("@babel/preset-") || normalized.startsWith("babel-preset-")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("@babel/")) {
+    const suffix = normalized.slice("@babel/".length);
+    return suffix.startsWith("preset-") ? normalized : `@babel/preset-${suffix}`;
+  }
+
+  if (["env", "react", "typescript", "flow"].includes(normalized)) {
+    return `@babel/preset-${normalized}`;
+  }
+
+  if (normalized.startsWith("@")) {
+    return getPackageName(normalized);
+  }
+
+  return `babel-preset-${normalized}`;
+}
+
+function stripModulePrefix(value: string): string {
+  return value.startsWith("module:") ? value.slice("module:".length) : value;
+}
+
+function collectPostCssPlugins(value: unknown): string[] {
+  const packages = new Set<string>();
+
+  if (typeof value === "string") {
+    packages.add(value);
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === "string") {
+        packages.add(item);
+      } else if (Array.isArray(item) && typeof item[0] === "string") {
+        packages.add(item[0]);
+      } else if (isRecord(item)) {
+        for (const key of Object.keys(item)) {
+          packages.add(key);
+        }
+      }
+    }
+  }
+
+  if (isRecord(value)) {
+    for (const key of Object.keys(value)) {
+      packages.add(key);
+    }
+  }
+
+  return [...packages].filter((packageName) => !isLocalStyleReference(packageName)).sort();
+}
+
+function normalizeCommitlintConfig(value: string): string | null {
+  const normalized = stripQuotes(value);
+
+  if (!normalized || isLocalStyleReference(normalized)) {
+    return null;
+  }
+
+  if (normalized.startsWith("@commitlint/") || normalized.startsWith("commitlint-config-")) {
+    return getPackageName(normalized);
+  }
+
+  return `commitlint-config-${normalized}`;
+}
+
+function normalizeCommitlintPlugin(value: string): string | null {
+  const normalized = stripQuotes(value);
+
+  if (!normalized || isLocalStyleReference(normalized)) {
+    return null;
+  }
+
+  if (normalized.startsWith("commitlint-plugin-")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("@")) {
+    return getPackageName(normalized);
+  }
+
+  return `commitlint-plugin-${normalized}`;
+}
+
+function collectLintStagedCommands(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(collectLintStagedCommands);
+  }
+
+  if (isRecord(value)) {
+    return Object.values(value).flatMap(collectLintStagedCommands);
+  }
+
+  return [];
+}
+
+function isLocalStyleReference(value: string): boolean {
+  return value.startsWith(".") || value.startsWith("/") || value.startsWith("file:");
 }
 
 function normalizeEslintPlugin(value: string): string {

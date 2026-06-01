@@ -148,6 +148,45 @@ const scenarios = [
     },
   },
   {
+    name: "config-packages-project",
+    cwd: path.join(rootDir, "test", "fixtures", "config-packages-project"),
+    args: ["--reporter", "json", "--debug"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.deepEqual(workspace.summary.activePlugins, [
+        "babel",
+        "commitlint",
+        "eslint",
+        "husky",
+        "lint-staged",
+        "postcss",
+        "prettier",
+      ]);
+      assert.deepEqual(workspace.externalImports, [
+        "@babel/cli",
+        "@babel/core",
+        "@babel/preset-env",
+        "@commitlint/cli",
+        "@commitlint/config-conventional",
+        "autoprefixer",
+        "babel-plugin-macros",
+        "commitlint-plugin-workspace-scopes",
+        "eslint",
+        "husky",
+        "lint-staged",
+        "postcss",
+        "prettier",
+      ]);
+      assert.deepEqual(workspace.findings, [
+        {
+          type: "unused-devDependencies",
+          title: "Unused devDependencies",
+          items: ["unused-package"],
+        },
+      ]);
+    },
+  },
+  {
     name: "compiler-project",
     cwd: path.join(rootDir, "test", "fixtures", "compiler-project"),
     args: ["--reporter", "json"],

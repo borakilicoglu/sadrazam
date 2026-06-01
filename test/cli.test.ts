@@ -793,6 +793,7 @@ describe("CLI", () => {
       "jest",
       "next",
       "playwright",
+      "postcss",
       "prettier",
       "rollup",
       "storybook",
@@ -1118,6 +1119,74 @@ describe("CLI", () => {
     expect(turbo).toEqual(expect.objectContaining({
       activation: ["config-file", "dependency", "script"],
       packages: ["turbo"],
+    }));
+  });
+
+  it("detects package usage from common tool config files", () => {
+    const report = runJsonReport("config-packages-project", ["--debug"]);
+    const workspace = report.workspaces[0];
+    const babel = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "babel");
+    const commitlint = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "commitlint");
+    const husky = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "husky");
+    const lintStaged = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "lint-staged");
+    const postcss = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "postcss");
+
+    expect(workspace.summary.activePlugins).toEqual([
+      "babel",
+      "commitlint",
+      "eslint",
+      "husky",
+      "lint-staged",
+      "postcss",
+      "prettier",
+    ]);
+    expect(workspace.externalImports).toEqual([
+      "@babel/cli",
+      "@babel/core",
+      "@babel/preset-env",
+      "@commitlint/cli",
+      "@commitlint/config-conventional",
+      "autoprefixer",
+      "babel-plugin-macros",
+      "commitlint-plugin-workspace-scopes",
+      "eslint",
+      "husky",
+      "lint-staged",
+      "postcss",
+      "prettier",
+    ]);
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-devDependencies",
+        title: "Unused devDependencies",
+        items: ["unused-package"],
+      },
+    ]);
+    expect(workspace.summary.scriptEntryFiles).toEqual(expect.arrayContaining([
+      ".commitlintrc.json",
+      ".husky/pre-commit",
+      ".postcssrc.json",
+      "src/index.ts",
+    ]));
+    expect(babel).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency", "script"],
+      packages: ["@babel/cli", "@babel/core", "@babel/preset-env", "babel-plugin-macros"],
+    }));
+    expect(commitlint).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency"],
+      packages: ["@commitlint/cli", "@commitlint/config-conventional", "commitlint-plugin-workspace-scopes"],
+    }));
+    expect(husky).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency", "script"],
+      packages: ["@babel/cli", "husky", "lint-staged"],
+    }));
+    expect(lintStaged).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency"],
+      packages: ["eslint", "lint-staged", "prettier"],
+    }));
+    expect(postcss).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency"],
+      packages: ["autoprefixer", "postcss"],
     }));
   });
 

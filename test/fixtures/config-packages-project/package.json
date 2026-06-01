@@ -1,0 +1,39 @@
+{
+  "name": "config-packages-project",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "prepare": "husky",
+    "verify": "babel src/index.ts --out-dir dist"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env"
+    ],
+    "plugins": [
+      "macros"
+    ]
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint src/index.ts",
+      "prettier --write src/index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@commitlint/cli": "^20.0.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "autoprefixer": "^10.0.0",
+    "babel-plugin-macros": "^3.0.0",
+    "commitlint-plugin-workspace-scopes": "^1.0.0",
+    "eslint": "^9.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^16.0.0",
+    "postcss": "^8.0.0",
+    "prettier": "^3.0.0",
+    "unused-package": "^1.0.0"
+  }
+}

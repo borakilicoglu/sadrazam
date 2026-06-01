@@ -15,6 +15,7 @@ const BUILTIN_SCRIPT_COMMANDS = new Set([
   "bash",
 ]);
 const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
+  babel: "@babel/cli",
   biome: "@biomejs/biome",
   attw: "@arethetypeswrong/cli",
   changeset: "@changesets/cli",
@@ -42,6 +43,7 @@ const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
   lerna: "lerna",
   rush: "@microsoft/rush",
   // utilities
+  postcss: "postcss-cli",
   rimraf: "rimraf",
   "cross-env": "cross-env",
   concurrently: "concurrently",
@@ -49,6 +51,7 @@ const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
   dotenv: "dotenv-cli",
   // git hooks
   husky: "husky",
+  commitlint: "@commitlint/cli",
   "lint-staged": "lint-staged",
   // release / versioning
   "semantic-release": "semantic-release",

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.1.18
+
+### Added
+- Built-in config package reference plugins for Babel, PostCSS, Commitlint, lint-staged, and Husky hooks
+
 ## v0.1.17
 
 ### Added

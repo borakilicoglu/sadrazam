@@ -21,6 +21,9 @@ export interface PackageJsonShape {
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
+  babel?: unknown;
+  commitlint?: unknown;
+  "lint-staged"?: unknown;
   prettier?: string | {
     plugins?: string[];
   };

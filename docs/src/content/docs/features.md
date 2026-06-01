@@ -22,7 +22,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Bitbucket Pipelines, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Lerna, Next, Nx, Playwright, pnpm workspace, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
+| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
 | Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
 | Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
@@ -61,18 +61,23 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | --- | --- | --- |
 | Astro | `astro` package or script | `astro.config.*`, `src/pages/**/*.astro`, `src/content/**/*.{md,mdx}` |
 | Azure Pipelines | `azure-pipelines.yml`, `.yaml`, or `.azure-pipelines/*.{yml,yaml}` | `script`, `bash`, `pwsh`, `workingDirectory` |
+| Babel | `@babel/*` package, `babel` script, package config, or Babel config file | `babel.config.*`, `.babelrc*`, `plugins`, `presets` |
 | Bitbucket Pipelines | `bitbucket-pipelines.yml` or `.yaml` | nested `script` command blocks |
 | CircleCI | `.circleci/config.yml` or `.yaml` | job `run` commands, job and step `working_directory` |
+| Commitlint | `@commitlint/cli` package, `commitlint` script, package config, or Commitlint config file | `commitlint.config.*`, `.commitlintrc*`, `extends`, `parserPreset`, `plugins` |
 | Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
 | ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |
 | GitHub Actions | `.github/workflows/*.yml` or `.yaml` | workflow `run` commands, step `working-directory`, local `action.yml` node entries |
 | GitLab CI | `.gitlab-ci.yml` or `.yaml` | `before_script`, `script`, and `after_script` command blocks |
+| Husky | `husky` package, `husky` script, or `.husky/*` hook | hook command blocks |
 | Jest | `jest` package or script | `jest.config.*`, `package.json`, `--config`, `-c` |
 | Lerna | `lerna` package or script, or `lerna.json` | `lerna.json` config entry |
+| lint-staged | `lint-staged` package, script, package config, or lint-staged config file | staged-file command blocks |
 | Next | `next` package or script | `next.config.*`, `pages/**`, `app/**`, `src/pages/**`, `src/app/**` |
 | Nx | `nx` package or script | `nx.json`, `workspace.json`, `project.json`, `plugins` package entries |
 | Playwright | `@playwright/test` or `playwright` package/script | `playwright.config.*`, `tests/**`, `e2e/**` |
 | pnpm workspace | `pnpm-workspace.yaml` | workspace config entry |
+| PostCSS | `postcss` package, `postcss` script, or PostCSS config file | `postcss.config.*`, `.postcssrc*`, `plugins` |
 | Prettier | `prettier` package or script | `.prettierrc*`, `prettier.config.*`, `package.json#prettier`, `--plugin`, `--config` |
 | Rollup | `rollup` package or script | `rollup.config.*`, `--config`, `-c` |
 | Rush | `rush` package or script, or `rush.json` | `rush.json` config entry |
