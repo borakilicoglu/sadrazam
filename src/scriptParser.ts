@@ -37,6 +37,10 @@ const COMMAND_PACKAGE_ALIASES: Record<string, string> = {
   esbuild: "esbuild",
   tsup: "tsup",
   tsdown: "tsdown",
+  turbo: "turbo",
+  nx: "nx",
+  lerna: "lerna",
+  rush: "@microsoft/rush",
   // utilities
   rimraf: "rimraf",
   "cross-env": "cross-env",

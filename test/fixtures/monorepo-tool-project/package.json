@@ -1,0 +1,15 @@
+{
+  "name": "monorepo-tool-project",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "graph": "nx graph"
+  },
+  "devDependencies": {
+    "@nx/eslint": "^22.0.0",
+    "nx": "^22.0.0",
+    "turbo": "^2.0.0",
+    "unused-package": "^1.0.0"
+  }
+}

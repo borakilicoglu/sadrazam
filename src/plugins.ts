@@ -138,6 +138,70 @@ const PLUGINS: PluginDefinition[] = [
     analyzeConfig: analyzeTsConfig,
   },
   {
+    ...createToolPlugin("pnpm-workspace", [], [], [
+      "pnpm-workspace.yaml",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, ["pnpm-workspace.yaml"])).length > 0;
+    },
+  },
+  {
+    ...createToolPlugin("turbo", ["turbo"], ["turbo"], [
+      "turbo.json",
+      "turbo.jsonc",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, ["turbo.json", "turbo.jsonc"])).length > 0;
+    },
+  },
+  {
+    ...createToolPlugin("nx", ["nx"], ["nx"], [
+      "nx.json",
+      "workspace.json",
+      "project.json",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, ["nx.json", "workspace.json", "project.json"])).length > 0;
+    },
+    analyzeConfig: analyzeNxConfig,
+  },
+  {
+    ...createToolPlugin("lerna", ["lerna"], ["lerna"], [
+      "lerna.json",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, ["lerna.json"])).length > 0;
+    },
+  },
+  {
+    ...createToolPlugin("rush", ["rush"], ["@microsoft/rush"], [
+      "rush.json",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, ["rush.json"])).length > 0;
+    },
+  },
+  {
     ...createToolPlugin("github-actions", [], [], [
       ".github/workflows/*.{yml,yaml}",
       ".github/**/action.{yml,yaml}",
@@ -601,6 +665,29 @@ async function analyzeTsConfig(filePath: string, _context: PluginContext): Promi
   return fileEntries.size > 0 || packages.size > 0
     ? { fileEntries: [...fileEntries], packages: [...packages] }
     : null;
+}
+
+async function analyzeNxConfig(filePath: string, _context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readJsonFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const packages = new Set<string>();
+
+  for (const plugin of toUnknownArray(config.plugins)) {
+    if (typeof plugin === "string") {
+      packages.add(getPackageName(plugin));
+      continue;
+    }
+
+    if (isRecord(plugin) && typeof plugin.plugin === "string") {
+      packages.add(getPackageName(plugin.plugin));
+    }
+  }
+
+  return packages.size > 0 ? { packages: [...packages].sort() } : null;
 }
 
 async function analyzeGitHubActionsConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
@@ -1114,6 +1201,10 @@ function getKnownCommandPackage(command: string, _tokens: string[]): string | nu
     semgrep: "semgrep",
     tsc: "typescript",
     tsx: "tsx",
+    turbo: "turbo",
+    nx: "nx",
+    lerna: "lerna",
+    rush: "@microsoft/rush",
     vite: "vite",
     vitest: "vitest",
     webpack: "webpack",

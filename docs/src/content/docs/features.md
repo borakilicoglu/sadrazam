@@ -18,11 +18,11 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Init | Use `sadrazam init` to create a `sadrazam.json` config interactively or from piped answers. |
 | JSDoc tags | Tag exports with `@sadrazam-ignore` or `@sadrazam-keep` to suppress unused export findings. |
 | Memory usage | Use `--memory` for peak heap and RSS insight. |
-| Monorepos | Workspaces are first-class and can be filtered with `--workspace`. |
+| Monorepos | Package workspaces, `pnpm-workspace.yaml`, Lerna, and Rush workspace configs are first-class and can be filtered with `--workspace`. |
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Bitbucket Pipelines, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack. |
+| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Bitbucket Pipelines, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Lerna, Next, Nx, Playwright, pnpm workspace, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
 | Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
 | Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
@@ -68,13 +68,18 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | GitHub Actions | `.github/workflows/*.yml` or `.yaml` | workflow `run` commands, step `working-directory`, local `action.yml` node entries |
 | GitLab CI | `.gitlab-ci.yml` or `.yaml` | `before_script`, `script`, and `after_script` command blocks |
 | Jest | `jest` package or script | `jest.config.*`, `package.json`, `--config`, `-c` |
+| Lerna | `lerna` package or script, or `lerna.json` | `lerna.json` config entry |
 | Next | `next` package or script | `next.config.*`, `pages/**`, `app/**`, `src/pages/**`, `src/app/**` |
+| Nx | `nx` package or script | `nx.json`, `workspace.json`, `project.json`, `plugins` package entries |
 | Playwright | `@playwright/test` or `playwright` package/script | `playwright.config.*`, `tests/**`, `e2e/**` |
+| pnpm workspace | `pnpm-workspace.yaml` | workspace config entry |
 | Prettier | `prettier` package or script | `.prettierrc*`, `prettier.config.*`, `package.json#prettier`, `--plugin`, `--config` |
 | Rollup | `rollup` package or script | `rollup.config.*`, `--config`, `-c` |
+| Rush | `rush` package or script, or `rush.json` | `rush.json` config entry |
 | Storybook | `storybook` package or script | `.storybook/main.*`, `.storybook/preview.*`, stories globs |
 | SvelteKit | `@sveltejs/kit` package or `svelte-kit` script | `svelte.config.*`, `vite.config.*`, `src/routes/**`, `src/hooks.*` |
 | Tailwind | `tailwindcss` package or script | `tailwind.config.*`, `postcss.config.*`, `-c` |
+| Turbo | `turbo` package or script | `turbo.json`, `turbo.jsonc` |
 | TypeScript | `typescript` package or `tsc` script | `tsconfig*.json`, `extends`, `references`, `compilerOptions.plugins` |
 | Vite | `vite` package or script | `vite.config.*`, `--config`, `-c` |
 | Vitest | `vitest` package or script | `vitest.config.*`, `--config`, `-c` |

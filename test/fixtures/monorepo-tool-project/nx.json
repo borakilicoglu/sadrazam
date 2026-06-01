@@ -1,0 +1,5 @@
+{
+  "plugins": [
+    "@nx/eslint/plugin"
+  ]
+}

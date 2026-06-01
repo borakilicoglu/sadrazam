@@ -117,7 +117,7 @@ async function findWorkspaceRootPackageJson(startDir: string): Promise<string | 
     try {
       const packageJson = (await readPackageJson(packagePath)) as PackageJsonShape;
 
-      if (hasWorkspaceConfig(packageJson) || await hasPnpmWorkspaceFile(currentDir)) {
+      if (hasWorkspaceConfig(packageJson) || await hasWorkspaceRootFile(currentDir)) {
         return packagePath;
       }
     } catch (error) {
@@ -142,13 +142,17 @@ function hasWorkspaceConfig(packageJson: PackageJsonShape): boolean {
   return Array.isArray(packageJson.workspaces) || Array.isArray(packageJson.workspaces?.packages);
 }
 
-async function hasPnpmWorkspaceFile(dir: string): Promise<boolean> {
-  try {
-    await access(path.join(dir, "pnpm-workspace.yaml"));
-    return true;
-  } catch {
-    return false;
+async function hasWorkspaceRootFile(dir: string): Promise<boolean> {
+  for (const filename of ["pnpm-workspace.yaml", "lerna.json", "rush.json"]) {
+    try {
+      await access(path.join(dir, filename));
+      return true;
+    } catch {
+      // Try the next supported workspace root file.
+    }
   }
+
+  return false;
 }
 
 function collectEntrySpecifiers(packageJson: PackageJsonShape): string[] {

@@ -1,0 +1,13 @@
+{
+  "rushVersion": "5.0.0",
+  "projects": [
+    {
+      "packageName": "@acme/web",
+      "projectFolder": "apps/web"
+    },
+    {
+      "packageName": "@acme/shared",
+      "projectFolder": "packages/shared"
+    }
+  ]
+}

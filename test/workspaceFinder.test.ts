@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parsePnpmWorkspaceYaml } from "../src/workspaceFinder.js";
+import {
+  parseLernaWorkspaceJson,
+  parsePnpmWorkspaceYaml,
+  parseRushWorkspaceJson,
+} from "../src/workspaceFinder.js";
 
 describe("parsePnpmWorkspaceYaml", () => {
   it("parses a basic packages list", () => {
@@ -101,5 +105,30 @@ packages:
   - packages/**
 `;
     expect(parsePnpmWorkspaceYaml(yaml)).toEqual(["packages/**"]);
+  });
+});
+
+describe("parseLernaWorkspaceJson", () => {
+  it("uses explicit package globs", () => {
+    expect(parseLernaWorkspaceJson({ packages: ["packages/*", "apps/*"] })).toEqual(["packages/*", "apps/*"]);
+  });
+
+  it("uses the Lerna default package glob when packages are omitted", () => {
+    expect(parseLernaWorkspaceJson({ version: "independent" })).toEqual(["packages/*"]);
+  });
+});
+
+describe("parseRushWorkspaceJson", () => {
+  it("uses projectFolder entries", () => {
+    expect(parseRushWorkspaceJson({
+      projects: [
+        { packageName: "@acme/api", projectFolder: "apps/api" },
+        { packageName: "@acme/shared", projectFolder: "packages/shared" },
+      ],
+    })).toEqual(["apps/api", "packages/shared"]);
+  });
+
+  it("ignores projects without a projectFolder", () => {
+    expect(parseRushWorkspaceJson({ projects: [{ packageName: "@acme/missing" }] })).toEqual([]);
   });
 });

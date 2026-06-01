@@ -161,6 +161,12 @@ Sadrazam enables built-in plugins from package declarations, scripts, and known 
     },
     "bitbucket-pipelines": {
       "config": "bitbucket-pipelines.yml"
+    },
+    "nx": {
+      "config": "nx.json"
+    },
+    "turbo": {
+      "config": "turbo.json"
     }
   }
 }
@@ -168,6 +174,7 @@ Sadrazam enables built-in plugins from package declarations, scripts, and known 
 
 The GitHub Actions plugin reads workflow and local action YAML files, parses `run` commands, respects step-level `working-directory`, and treats local node action scripts as entry files.
 The GitLab CI, CircleCI, Azure Pipelines, and Bitbucket Pipelines plugins read CI YAML command blocks and resolve direct tool calls plus package scripts such as `npm run lint`.
+The pnpm workspace, Turbo, Nx, Lerna, and Rush plugins add monorepo config files as entry signals; Nx also treats `plugins` entries as package usage.
 
 ## Allowlist Flags
 

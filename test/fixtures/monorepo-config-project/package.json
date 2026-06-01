@@ -1,0 +1,7 @@
+{
+  "name": "monorepo-config-project",
+  "private": true,
+  "devDependencies": {
+    "chalk": "^5.0.0"
+  }
+}

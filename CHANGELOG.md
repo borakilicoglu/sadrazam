@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.1.17
+
+### Added
+- Lerna and Rush workspace discovery for monorepos without `package.json#workspaces`
+- Built-in monorepo tool plugins for pnpm workspace, Turbo, Nx, Lerna, and Rush config files
+- Nx plugin package usage detection from `nx.json` plugin entries
+
 ## v0.1.16
 
 ### Added

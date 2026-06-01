@@ -113,9 +113,15 @@ Sadrazam automatically enables built-in plugin analysis from package declaration
     },
     "bitbucket-pipelines": {
       "config": "bitbucket-pipelines.yml"
+    },
+    "nx": {
+      "config": "nx.json"
+    },
+    "turbo": {
+      "config": "turbo.json"
     }
   }
 }
 ```
 
-Supported built-in plugins currently cover Astro, Azure Pipelines, Bitbucket Pipelines, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack.
+Supported built-in plugins currently cover Astro, Azure Pipelines, Bitbucket Pipelines, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Lerna, Next, Nx, Playwright, pnpm workspace, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack.

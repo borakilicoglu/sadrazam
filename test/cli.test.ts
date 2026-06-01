@@ -473,6 +473,19 @@ describe("CLI", () => {
     expect(report.workspaces.every((workspace: { findings: unknown[] }) => workspace.findings.length === 0)).toBe(true);
   });
 
+  it("discovers Lerna and Rush configured workspaces", () => {
+    const report = runJsonReport("monorepo-config-project");
+    const workspaceNames = report.workspaces.map((workspace: { workspace: { name: string } }) => workspace.workspace.name).sort();
+    const webWorkspace = report.workspaces.find(
+      (workspace: { workspace: { name: string } }) => workspace.workspace.name === "@acme/web",
+    );
+
+    expect(report.workspaces).toHaveLength(2);
+    expect(workspaceNames).toEqual(["@acme/shared", "@acme/web"]);
+    expect(report.workspaces.every((workspace: { findings: unknown[] }) => workspace.findings.length === 0)).toBe(true);
+    expect(webWorkspace.externalImports).toEqual(["@acme/shared", "chalk"]);
+  });
+
   it("treats @types/node as used when TypeScript files import Node built-ins", () => {
     const report = runJsonReport("ts-node-types-project");
     const workspace = report.workspaces[0];
@@ -1076,6 +1089,35 @@ describe("CLI", () => {
     expect(bitbucketPipelines).toEqual(expect.objectContaining({
       activation: ["config-file"],
       packages: ["vitest"],
+    }));
+  });
+
+  it("detects monorepo tool config package usage", () => {
+    const report = runJsonReport("monorepo-tool-project", ["--debug"]);
+    const workspace = report.workspaces[0];
+    const nx = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "nx");
+    const turbo = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "turbo");
+
+    expect(workspace.summary.activePlugins).toEqual(["nx", "turbo"]);
+    expect(workspace.externalImports).toEqual(["@nx/eslint", "nx", "turbo"]);
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-devDependencies",
+        title: "Unused devDependencies",
+        items: ["unused-package"],
+      },
+    ]);
+    expect(workspace.summary.scriptEntryFiles).toEqual(expect.arrayContaining([
+      "nx.json",
+      "turbo.json",
+    ]));
+    expect(nx).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency", "script"],
+      packages: ["@nx/eslint", "nx"],
+    }));
+    expect(turbo).toEqual(expect.objectContaining({
+      activation: ["config-file", "dependency", "script"],
+      packages: ["turbo"],
     }));
   });
 

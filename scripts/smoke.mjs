@@ -62,6 +62,19 @@ const scenarios = [
     },
   },
   {
+    name: "monorepo-config-project",
+    cwd: path.join(rootDir, "test", "fixtures", "monorepo-config-project"),
+    args: ["--reporter", "json"],
+    validate(report) {
+      assert.equal(report.workspaces.length, 2);
+      const workspaceNames = report.workspaces.map((workspace) => workspace.workspace.name).sort();
+      const webWorkspace = report.workspaces.find((workspace) => workspace.workspace.name === "@acme/web");
+      assert.deepEqual(workspaceNames, ["@acme/shared", "@acme/web"]);
+      assert.ok(report.workspaces.every((workspace) => workspace.findings.length === 0));
+      assert.deepEqual(webWorkspace.externalImports, ["@acme/shared", "chalk"]);
+    },
+  },
+  {
     name: "preprocessor-project",
     cwd: path.join(rootDir, "test", "fixtures", "preprocessor-project"),
     args: ["--reporter", "json"],
@@ -114,6 +127,23 @@ const scenarios = [
         "eslint-plugin-react-hooks",
         "prettier",
         "prettier-plugin-tailwindcss",
+      ]);
+    },
+  },
+  {
+    name: "monorepo-tool-project",
+    cwd: path.join(rootDir, "test", "fixtures", "monorepo-tool-project"),
+    args: ["--reporter", "json", "--debug"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.deepEqual(workspace.summary.activePlugins, ["nx", "turbo"]);
+      assert.deepEqual(workspace.externalImports, ["@nx/eslint", "nx", "turbo"]);
+      assert.deepEqual(workspace.findings, [
+        {
+          type: "unused-devDependencies",
+          title: "Unused devDependencies",
+          items: ["unused-package"],
+        },
       ]);
     },
   },

@@ -85,8 +85,10 @@ async function normalizeWorkspacePatterns(
     ? workspaces
     : workspaces?.packages ?? [];
   const pnpmPatterns = await readPnpmWorkspacePatterns(rootDir);
+  const lernaPatterns = await readLernaWorkspacePatterns(rootDir);
+  const rushPatterns = await readRushWorkspacePatterns(rootDir);
 
-  return [...new Set([...packageJsonPatterns, ...pnpmPatterns])];
+  return [...new Set([...packageJsonPatterns, ...pnpmPatterns, ...lernaPatterns, ...rushPatterns])];
 }
 
 async function readPnpmWorkspacePatterns(rootDir: string): Promise<string[]> {
@@ -163,6 +165,66 @@ export function parsePnpmWorkspaceYaml(source: string): string[] {
   }
 
   return patterns;
+}
+
+async function readLernaWorkspacePatterns(rootDir: string): Promise<string[]> {
+  const configPath = path.join(rootDir, "lerna.json");
+
+  try {
+    const config = JSON.parse(await readFile(configPath, "utf8")) as unknown;
+    return parseLernaWorkspaceJson(config);
+  } catch (error) {
+    const typedError = error as NodeJS.ErrnoException;
+
+    if (typedError.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export function parseLernaWorkspaceJson(config: unknown): string[] {
+  if (!isRecord(config)) {
+    return [];
+  }
+
+  const packages = Array.isArray(config.packages)
+    ? config.packages.filter((entry): entry is string => typeof entry === "string")
+    : [];
+
+  return packages.length > 0 ? packages : ["packages/*"];
+}
+
+async function readRushWorkspacePatterns(rootDir: string): Promise<string[]> {
+  const configPath = path.join(rootDir, "rush.json");
+
+  try {
+    const config = JSON.parse(await readFile(configPath, "utf8")) as unknown;
+    return parseRushWorkspaceJson(config);
+  } catch (error) {
+    const typedError = error as NodeJS.ErrnoException;
+
+    if (typedError.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export function parseRushWorkspaceJson(config: unknown): string[] {
+  if (!isRecord(config) || !Array.isArray(config.projects)) {
+    return [];
+  }
+
+  return config.projects
+    .map((project) => isRecord(project) && typeof project.projectFolder === "string" ? project.projectFolder : null)
+    .filter((entry): entry is string => Boolean(entry));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stripYamlInlineComment(line: string): string {
