@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## Unreleased
+## v0.1.16
+
+### Added
+- Azure Pipelines plugin scanning for `azure-pipelines.yml`, `azure-pipelines.yaml`, and `.azure-pipelines/*.{yml,yaml}` command blocks
+- Bitbucket Pipelines plugin scanning for `bitbucket-pipelines.yml` and `bitbucket-pipelines.yaml` script command blocks
 
 ## v0.1.15
 

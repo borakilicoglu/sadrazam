@@ -1,0 +1,16 @@
+{
+  "name": "ci-extended-project",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src/index.ts",
+    "check": "tsx scripts/check.ts"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.0.0",
+    "unused-package": "^1.0.0",
+    "vitest": "^4.0.0"
+  }
+}

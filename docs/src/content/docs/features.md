@@ -22,7 +22,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis covers Astro, Cypress, ESLint, GitHub Actions, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack. |
+| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Bitbucket Pipelines, CircleCI, Cypress, ESLint, GitHub Actions, GitLab CI, Jest, Next, Playwright, Prettier, Rollup, Storybook, SvelteKit, Tailwind, TypeScript, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
 | Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
 | Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
@@ -60,6 +60,8 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | Plugin | Activation | Config files and entry signals |
 | --- | --- | --- |
 | Astro | `astro` package or script | `astro.config.*`, `src/pages/**/*.astro`, `src/content/**/*.{md,mdx}` |
+| Azure Pipelines | `azure-pipelines.yml`, `.yaml`, or `.azure-pipelines/*.{yml,yaml}` | `script`, `bash`, `pwsh`, `workingDirectory` |
+| Bitbucket Pipelines | `bitbucket-pipelines.yml` or `.yaml` | nested `script` command blocks |
 | CircleCI | `.circleci/config.yml` or `.yaml` | job `run` commands, job and step `working_directory` |
 | Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
 | ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |

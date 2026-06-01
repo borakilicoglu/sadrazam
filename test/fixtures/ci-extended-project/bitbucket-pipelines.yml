@@ -1,0 +1,9 @@
+image: node:20
+
+pipelines:
+  default:
+    - step:
+        name: test
+        script:
+          - pnpm vitest run
+          - node scripts/from-bitbucket.js

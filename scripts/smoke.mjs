@@ -207,6 +207,29 @@ const scenarios = [
     },
   },
   {
+    name: "ci-extended-project",
+    cwd: path.join(rootDir, "test", "fixtures", "ci-extended-project"),
+    args: ["--reporter", "json", "--debug"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.deepEqual(workspace.summary.activePlugins, [
+        "azure-pipelines",
+        "bitbucket-pipelines",
+        "eslint",
+        "playwright",
+        "vitest",
+      ]);
+      assert.deepEqual(workspace.externalImports, ["@playwright/test", "eslint", "tsx", "vitest"]);
+      assert.deepEqual(workspace.findings, [
+        {
+          type: "unused-dependencies",
+          title: "Unused dependencies",
+          items: ["unused-package"],
+        },
+      ]);
+    },
+  },
+  {
     name: "jsdoc-tags-project",
     cwd: path.join(rootDir, "test", "fixtures", "jsdoc-tags-project"),
     args: ["--reporter", "json"],

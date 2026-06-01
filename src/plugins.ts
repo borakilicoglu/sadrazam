@@ -179,6 +179,38 @@ const PLUGINS: PluginDefinition[] = [
     },
     analyzeConfig: analyzeCircleCiConfig,
   },
+  {
+    ...createToolPlugin("azure-pipelines", [], [], [
+      "azure-pipelines.yml",
+      "azure-pipelines.yaml",
+      ".azure-pipelines/*.{yml,yaml}",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [
+        "azure-pipelines.{yml,yaml}",
+        ".azure-pipelines/*.{yml,yaml}",
+      ])).length > 0;
+    },
+    analyzeConfig: analyzeAzurePipelinesConfig,
+  },
+  {
+    ...createToolPlugin("bitbucket-pipelines", [], [], [
+      "bitbucket-pipelines.yml",
+      "bitbucket-pipelines.yaml",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, ["bitbucket-pipelines.{yml,yaml}"])).length > 0;
+    },
+    analyzeConfig: analyzeBitbucketPipelinesConfig,
+  },
 ];
 
 export async function analyzePlugins(context: PluginContext): Promise<PluginAnalysis> {
@@ -807,6 +839,91 @@ async function analyzeCircleCiConfig(filePath: string, context: PluginContext): 
         packageUsage,
       );
     }
+  }
+
+  return fileEntries.size > 0 || packages.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
+}
+
+async function analyzeAzurePipelinesConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const commandBlocks: Array<{ command: string; commandDir: string }> = [];
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+
+  visitUnknown(config, (node) => {
+    if (!isRecord(node)) {
+      return;
+    }
+
+    const workingDirectory = typeof node.workingDirectory === "string"
+      ? path.resolve(context.packageDir, node.workingDirectory)
+      : context.packageDir;
+
+    for (const key of ["script", "bash", "pwsh"]) {
+      if (typeof node[key] === "string") {
+        commandBlocks.push({ command: node[key], commandDir: workingDirectory });
+      }
+    }
+  });
+
+  return collectCiCommandsContribution(commandBlocks, context, source);
+}
+
+async function analyzeBitbucketPipelinesConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const commandBlocks: Array<{ command: string; commandDir: string }> = [];
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+
+  visitUnknown(config, (node) => {
+    if (!isRecord(node) || !("script" in node)) {
+      return;
+    }
+
+    for (const command of toCommandBlocks(node.script)) {
+      commandBlocks.push({ command, commandDir: context.packageDir });
+    }
+  });
+
+  return collectCiCommandsContribution(commandBlocks, context, source);
+}
+
+async function collectCiCommandsContribution(
+  commandBlocks: Array<{ command: string; commandDir: string }>,
+  context: PluginContext,
+  source: string,
+): Promise<PluginContribution | null> {
+  const fileEntries = new Set<string>();
+  const packages = new Set<string>();
+  const packageUsage = new Map<string, Set<string>>();
+
+  for (const { command, commandDir } of commandBlocks) {
+    mergeContribution(
+      await collectCiCommandContribution(command, {
+        context,
+        commandDir,
+        source,
+      }),
+      packages,
+      fileEntries,
+      packageUsage,
+    );
   }
 
   return fileEntries.size > 0 || packages.size > 0

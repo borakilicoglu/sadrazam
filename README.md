@@ -76,7 +76,7 @@ Unlike traditional tools:
 
 - detects unused dependencies AND unused files/exports
 - understands monorepos and modern frameworks
-- reads GitHub Actions, GitLab CI, and CircleCI workflows so CI-only tools are treated as used
+- reads GitHub Actions, GitLab CI, CircleCI, Azure Pipelines, and Bitbucket Pipelines workflows so CI-only tools are treated as used
 - optional AI layer for real explanations (not raw output)
 - safe auto-fix for `package.json`
 
@@ -148,6 +148,12 @@ Plugin overrides live in `sadrazam.json` when automatic tool discovery needs hel
     },
     "circleci": {
       "config": ".circleci/config.yml"
+    },
+    "azure-pipelines": {
+      "config": "azure-pipelines.yml"
+    },
+    "bitbucket-pipelines": {
+      "config": "bitbucket-pipelines.yml"
     }
   }
 }

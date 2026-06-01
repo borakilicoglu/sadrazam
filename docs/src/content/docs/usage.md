@@ -155,13 +155,19 @@ Sadrazam enables built-in plugins from package declarations, scripts, and known 
     },
     "circleci": {
       "config": ".circleci/config.yml"
+    },
+    "azure-pipelines": {
+      "config": "azure-pipelines.yml"
+    },
+    "bitbucket-pipelines": {
+      "config": "bitbucket-pipelines.yml"
     }
   }
 }
 ```
 
 The GitHub Actions plugin reads workflow and local action YAML files, parses `run` commands, respects step-level `working-directory`, and treats local node action scripts as entry files.
-The GitLab CI and CircleCI plugins read CI YAML command blocks and resolve direct tool calls plus package scripts such as `npm run lint`.
+The GitLab CI, CircleCI, Azure Pipelines, and Bitbucket Pipelines plugins read CI YAML command blocks and resolve direct tool calls plus package scripts such as `npm run lint`.
 
 ## Allowlist Flags
 

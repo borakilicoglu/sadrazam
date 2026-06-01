@@ -1,0 +1,12 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - script: npm run lint
+  - bash: npx playwright test
+  - pwsh: pnpm exec tsx scripts/check.ts
+  - script: node from-azure.js
+    workingDirectory: workspace/scripts

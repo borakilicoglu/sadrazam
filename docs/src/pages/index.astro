@@ -24,7 +24,7 @@ const featureCards = [
   },
   {
     title: "CI-aware usage",
-    text: "Read GitHub Actions, GitLab CI, and CircleCI commands so CI-only tools are counted as used.",
+    text: "Read GitHub Actions, GitLab CI, CircleCI, Azure Pipelines, and Bitbucket Pipelines commands so CI-only tools are counted as used.",
   },
   {
     title: "Agent output",
@@ -36,7 +36,7 @@ const pluginRows = [
   ["Frontend", "Astro, Next, SvelteKit, Vite, webpack, Rollup"],
   ["Testing", "Vitest, Jest, Playwright, Cypress, Storybook"],
   ["Quality", "ESLint, Prettier, Tailwind, TypeScript"],
-  ["CI", "GitHub Actions, GitLab CI, CircleCI"],
+  ["CI", "GitHub Actions, GitLab CI, CircleCI, Azure Pipelines, Bitbucket Pipelines"],
 ];
 ---
 
@@ -75,7 +75,7 @@ workspaces[1]:
   workspace:
     name=sadrazam
   summary:
-    activePlugins=[github-actions, gitlab-ci, circleci]
+    activePlugins=[github-actions, gitlab-ci, circleci, azure-pipelines, bitbucket-pipelines]
     findings=0
 
 <span class="ok">No dependency issues found.</span></code></pre>

@@ -1031,6 +1031,54 @@ describe("CLI", () => {
     }));
   });
 
+  it("detects Azure Pipelines and Bitbucket Pipelines command usage", () => {
+    const report = runJsonReport("ci-extended-project", ["--debug"]);
+    const workspace = report.workspaces[0];
+    const azurePipelines = workspace.debug.pluginDetails.find(
+      (detail: { name: string }) => detail.name === "azure-pipelines",
+    );
+    const bitbucketPipelines = workspace.debug.pluginDetails.find(
+      (detail: { name: string }) => detail.name === "bitbucket-pipelines",
+    );
+
+    expect(workspace.summary.activePlugins).toEqual([
+      "azure-pipelines",
+      "bitbucket-pipelines",
+      "eslint",
+      "playwright",
+      "vitest",
+    ]);
+    expect(workspace.externalImports).toEqual([
+      "@playwright/test",
+      "eslint",
+      "tsx",
+      "vitest",
+    ]);
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-dependencies",
+        title: "Unused dependencies",
+        items: ["unused-package"],
+      },
+    ]);
+    expect(workspace.summary.scriptEntryFiles).toEqual(expect.arrayContaining([
+      "azure-pipelines.yml",
+      "bitbucket-pipelines.yml",
+      "scripts/check.ts",
+      "scripts/from-bitbucket.js",
+      "src/index.ts",
+      "workspace/scripts/from-azure.js",
+    ]));
+    expect(azurePipelines).toEqual(expect.objectContaining({
+      activation: ["config-file"],
+      packages: ["@playwright/test", "eslint", "tsx"],
+    }));
+    expect(bitbucketPipelines).toEqual(expect.objectContaining({
+      activation: ["config-file"],
+      packages: ["vitest"],
+    }));
+  });
+
   it("detects built-in plugin package usage from tool-specific CLI arguments", () => {
     const report = runJsonReport("plugin-project");
     const workspace = report.workspaces[0];
