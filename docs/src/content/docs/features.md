@@ -22,7 +22,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
+| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, Docker, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
 | Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
 | Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
@@ -66,6 +66,7 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | CircleCI | `.circleci/config.yml` or `.yaml` | job `run` commands, job and step `working_directory` |
 | Commitlint | `@commitlint/cli` package, `commitlint` script, package config, or Commitlint config file | `commitlint.config.*`, `.commitlintrc*`, `extends`, `parserPreset`, `plugins` |
 | Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
+| Docker | `Dockerfile`, `Dockerfile.*`, `docker-compose.yml`, `compose.yaml`, or Docker script | Dockerfile `WORKDIR`, `RUN`, `CMD`, `ENTRYPOINT`; Compose `build.context`, `working_dir`, `command`, `entrypoint` |
 | ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |
 | GitHub Actions | `.github/workflows/*.yml` or `.yaml` | workflow `run` commands, step `working-directory`, local `action.yml` node entries |
 | GitLab CI | `.gitlab-ci.yml` or `.yaml` | `before_script`, `script`, and `after_script` command blocks |

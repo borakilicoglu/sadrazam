@@ -1093,6 +1093,43 @@ describe("CLI", () => {
     }));
   });
 
+  it("detects Dockerfile and Docker Compose command usage", () => {
+    const report = runJsonReport("docker-project", ["--debug"]);
+    const workspace = report.workspaces[0];
+    const docker = workspace.debug.pluginDetails.find((detail: { name: string }) => detail.name === "docker");
+
+    expect(workspace.summary.activePlugins).toEqual([
+      "docker",
+      "playwright",
+      "vite",
+    ]);
+    expect(workspace.externalImports).toEqual([
+      "@playwright/test",
+      "prisma",
+      "tsx",
+      "vite",
+    ]);
+    expect(workspace.findings).toEqual([
+      {
+        type: "unused-dependencies",
+        title: "Unused dependencies",
+        items: ["unused-package"],
+      },
+    ]);
+    expect(workspace.summary.scriptEntryFiles).toEqual(expect.arrayContaining([
+      "Dockerfile",
+      "docker-compose.yml",
+      "docker/scripts/worker.js",
+      "scripts/check.ts",
+      "scripts/server.js",
+      "tests/e2e.spec.ts",
+    ]));
+    expect(docker).toEqual(expect.objectContaining({
+      activation: ["config-file"],
+      packages: ["@playwright/test", "prisma", "tsx", "vite"],
+    }));
+  });
+
   it("detects monorepo tool config package usage", () => {
     const report = runJsonReport("monorepo-tool-project", ["--debug"]);
     const workspace = report.workspaces[0];

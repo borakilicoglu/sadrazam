@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.1.19
+
+### Added
+- Dockerfile and Docker Compose plugin scanning for package usage and entry files from container commands
+
 ## v0.1.18
 
 ### Added

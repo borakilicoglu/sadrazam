@@ -299,6 +299,23 @@ const scenarios = [
     },
   },
   {
+    name: "docker-project",
+    cwd: path.join(rootDir, "test", "fixtures", "docker-project"),
+    args: ["--reporter", "json", "--debug"],
+    validate(report) {
+      const workspace = report.workspaces[0];
+      assert.deepEqual(workspace.summary.activePlugins, ["docker", "playwright", "vite"]);
+      assert.deepEqual(workspace.externalImports, ["@playwright/test", "prisma", "tsx", "vite"]);
+      assert.deepEqual(workspace.findings, [
+        {
+          type: "unused-dependencies",
+          title: "Unused dependencies",
+          items: ["unused-package"],
+        },
+      ]);
+    },
+  },
+  {
     name: "jsdoc-tags-project",
     cwd: path.join(rootDir, "test", "fixtures", "jsdoc-tags-project"),
     args: ["--reporter", "json"],

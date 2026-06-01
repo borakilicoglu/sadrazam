@@ -374,6 +374,27 @@ const PLUGINS: PluginDefinition[] = [
     },
     analyzeConfig: analyzeBitbucketPipelinesConfig,
   },
+  {
+    ...createToolPlugin("docker", ["docker", "docker-compose"], [], [
+      "Dockerfile",
+      "Dockerfile.*",
+      "docker-compose.{yml,yaml}",
+      "compose.{yml,yaml}",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [
+        "Dockerfile",
+        "Dockerfile.*",
+        "docker-compose.{yml,yaml}",
+        "compose.{yml,yaml}",
+      ])).length > 0;
+    },
+    analyzeConfig: analyzeDockerConfig,
+  },
 ];
 
 export async function analyzePlugins(context: PluginContext): Promise<PluginAnalysis> {
@@ -1247,6 +1268,76 @@ async function analyzeBitbucketPipelinesConfig(filePath: string, context: Plugin
   return collectCiCommandsContribution(commandBlocks, context, source);
 }
 
+async function analyzeDockerConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+
+  if (isDockerComposeFile(filePath)) {
+    return analyzeDockerComposeConfig(filePath, context, source);
+  }
+
+  return analyzeDockerfileConfig(filePath, context, source);
+}
+
+async function analyzeDockerfileConfig(
+  filePath: string,
+  context: PluginContext,
+  source: string,
+): Promise<PluginContribution | null> {
+  const instructions = parseDockerfileInstructions(await readFile(filePath, "utf8"));
+  const commandBlocks: Array<{ command: string; commandDir: string }> = [];
+  let workdir = context.packageDir;
+
+  for (const instruction of instructions) {
+    if (instruction.name === "WORKDIR") {
+      workdir = resolveDockerWorkdir(context.packageDir, workdir, instruction.value);
+      continue;
+    }
+
+    if (["RUN", "CMD", "ENTRYPOINT"].includes(instruction.name)) {
+      const command = parseDockerCommandInstruction(instruction.value);
+      if (command) {
+        commandBlocks.push({ command, commandDir: workdir });
+      }
+    }
+  }
+
+  return collectCiCommandsContribution(commandBlocks, context, source);
+}
+
+async function analyzeDockerComposeConfig(
+  filePath: string,
+  context: PluginContext,
+  source: string,
+): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config) || !isRecord(config.services)) {
+    return null;
+  }
+
+  const commandBlocks: Array<{ command: string; commandDir: string }> = [];
+
+  for (const service of Object.values(config.services)) {
+    if (!isRecord(service)) {
+      continue;
+    }
+
+    const contextDir = resolveComposeBuildContext(context.packageDir, service.build);
+    const commandDir = resolveComposeWorkingDir(contextDir, service.working_dir);
+
+    for (const command of [
+      parseDockerComposeCommand(service.command),
+      parseDockerComposeCommand(service.entrypoint),
+    ]) {
+      if (command) {
+        commandBlocks.push({ command, commandDir });
+      }
+    }
+  }
+
+  return collectCiCommandsContribution(commandBlocks, context, source);
+}
+
 async function collectCiCommandsContribution(
   commandBlocks: Array<{ command: string; commandDir: string }>,
   context: PluginContext,
@@ -1319,6 +1410,163 @@ function findCheckoutPath(steps: WorkflowStep[]): string | null {
   }
 
   return null;
+}
+
+interface DockerfileInstruction {
+  name: string;
+  value: string;
+}
+
+function isDockerComposeFile(filePath: string): boolean {
+  const filename = path.basename(filePath);
+  return /^(docker-compose|compose)\.ya?ml$/i.test(filename);
+}
+
+function parseDockerfileInstructions(source: string): DockerfileInstruction[] {
+  const instructions: DockerfileInstruction[] = [];
+  let pending = "";
+
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = stripDockerComment(rawLine).trimEnd();
+
+    if (!line.trim()) {
+      continue;
+    }
+
+    if (line.endsWith("\\")) {
+      pending += `${line.slice(0, -1)} `;
+      continue;
+    }
+
+    const fullLine = `${pending}${line}`.trim();
+    pending = "";
+    const match = fullLine.match(/^([A-Za-z]+)\s+(.+)$/);
+
+    if (match?.[1] && match[2]) {
+      instructions.push({
+        name: match[1].toUpperCase(),
+        value: match[2].trim(),
+      });
+    }
+  }
+
+  if (pending.trim()) {
+    const match = pending.trim().match(/^([A-Za-z]+)\s+(.+)$/);
+    if (match?.[1] && match[2]) {
+      instructions.push({
+        name: match[1].toUpperCase(),
+        value: match[2].trim(),
+      });
+    }
+  }
+
+  return instructions;
+}
+
+function stripDockerComment(line: string): string {
+  let quote: "'" | "\"" | null = null;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if ((char === "'" || char === "\"") && !quote) {
+      quote = char;
+      continue;
+    }
+
+    if (char === quote) {
+      quote = null;
+      continue;
+    }
+
+    if (char === "#" && !quote) {
+      return line.slice(0, index);
+    }
+  }
+
+  return line;
+}
+
+function parseDockerCommandInstruction(value: string): string | null {
+  const parsed = parseJsonCommandArray(value);
+
+  if (parsed) {
+    return parsed.join(" ");
+  }
+
+  return value.trim() || null;
+}
+
+function parseDockerComposeCommand(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string").join(" ");
+  }
+
+  return null;
+}
+
+function parseJsonCommandArray(value: string): string[] | null {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === "string") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveDockerWorkdir(packageDir: string, currentDir: string, value: string): string {
+  const workdir = stripQuotes(value.trim());
+
+  if (!workdir) {
+    return currentDir;
+  }
+
+  return workdir.startsWith("/")
+    ? path.resolve(packageDir, stripKnownContainerRoot(workdir))
+    : path.resolve(currentDir, workdir);
+}
+
+function resolveComposeBuildContext(packageDir: string, build: unknown): string {
+  if (typeof build === "string") {
+    return path.resolve(packageDir, build);
+  }
+
+  if (isRecord(build) && typeof build.context === "string") {
+    return path.resolve(packageDir, build.context);
+  }
+
+  return packageDir;
+}
+
+function resolveComposeWorkingDir(contextDir: string, workingDir: unknown): string {
+  if (typeof workingDir !== "string" || !workingDir.trim()) {
+    return contextDir;
+  }
+
+  const stripped = workingDir.trim().startsWith("/")
+    ? stripKnownContainerRoot(workingDir.trim())
+    : workingDir.trim();
+  return path.resolve(contextDir, stripped);
+}
+
+function stripKnownContainerRoot(value: string): string {
+  const normalized = value.replace(/\\/g, "/").replace(/\/+$/, "");
+
+  for (const root of ["/app", "/workspace", "/workspaces/app", "/usr/src/app"]) {
+    if (normalized === root) {
+      return ".";
+    }
+
+    if (normalized.startsWith(`${root}/`)) {
+      return normalized.slice(root.length + 1);
+    }
+  }
+
+  return normalized.replace(/^\/+/, "");
 }
 
 function collectNodeActionEntries(config: Record<string, unknown>, actionDir: string): PluginContribution | null {

@@ -173,6 +173,9 @@ Sadrazam enables built-in plugins from package declarations, scripts, and known 
     },
     "lint-staged": {
       "config": ".lintstagedrc.json"
+    },
+    "docker": {
+      "config": ["Dockerfile", "docker-compose.yml"]
     }
   }
 }
@@ -182,6 +185,7 @@ The GitHub Actions plugin reads workflow and local action YAML files, parses `ru
 The GitLab CI, CircleCI, Azure Pipelines, and Bitbucket Pipelines plugins read CI YAML command blocks and resolve direct tool calls plus package scripts such as `npm run lint`.
 The pnpm workspace, Turbo, Nx, Lerna, and Rush plugins add monorepo config files as entry signals; Nx also treats `plugins` entries as package usage.
 The Babel, PostCSS, Commitlint, lint-staged, and Husky plugins read common config references and hook command blocks so config-only packages are counted as used.
+The Docker plugin reads Dockerfile and Docker Compose commands, including working-directory and build-context hints, so container-only packages are counted as used.
 
 ## Allowlist Flags
 

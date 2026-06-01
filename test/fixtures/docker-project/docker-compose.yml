@@ -1,0 +1,18 @@
+services:
+  web:
+    build:
+      context: .
+    working_dir: /app
+    command: pnpm exec tsx scripts/check.ts
+  e2e:
+    build: .
+    command:
+      - npx
+      - playwright
+      - test
+      - tests/e2e.spec.ts
+  worker:
+    build:
+      context: docker
+    working_dir: /app
+    entrypoint: node scripts/worker.js

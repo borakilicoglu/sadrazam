@@ -125,9 +125,12 @@ Sadrazam automatically enables built-in plugin analysis from package declaration
     },
     "lint-staged": {
       "config": ".lintstagedrc.json"
+    },
+    "docker": {
+      "config": ["Dockerfile", "docker-compose.yml"]
     }
   }
 }
 ```
 
-Supported built-in plugins currently cover Astro, Azure Pipelines, Babel, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack.
+Supported built-in plugins currently cover Astro, Azure Pipelines, Babel, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, Docker, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack.
