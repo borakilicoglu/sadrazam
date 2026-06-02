@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v0.1.22
+
+### Added
+- Clack-powered interactive `sadrazam init` prompts with config preview and write confirmation
+- Init choices for reporter, scan mode, finding focus, noise exclusions, ignored packages, and custom scan inputs
+
+### Changed
+- Updated piped `sadrazam init` fallback to match the new deterministic config flow
+
 ## v0.1.21
 
 ### Added
