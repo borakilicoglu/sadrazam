@@ -54,6 +54,9 @@
   },
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "commander": "^14.0.3",
     "fast-glob": "^3.3.3",
