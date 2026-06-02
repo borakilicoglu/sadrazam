@@ -8,6 +8,7 @@
 - Node.js `>=20.19.0` package engine metadata
 - `compact-json` reporter for editor and extension integrations
 - VS Code extension scaffold with a manual workspace scan command
+- VS Code extension `scanOnOpen`, `scanOnSave`, and output channel support
 
 ## v0.1.19
 

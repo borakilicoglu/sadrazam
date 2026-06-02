@@ -5,29 +5,65 @@ const path = require("node:path");
 const vscode = require("vscode");
 
 let diagnostics;
+let outputChannel;
+let pendingScan = Promise.resolve();
 
 function activate(context) {
   diagnostics = vscode.languages.createDiagnosticCollection("sadrazam");
+  outputChannel = vscode.window.createOutputChannel("Sadrazam");
   context.subscriptions.push(diagnostics);
+  context.subscriptions.push(outputChannel);
 
   const command = vscode.commands.registerCommand("sadrazam.scanWorkspace", async () => {
-    try {
-      await scanWorkspace(context);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      vscode.window.showErrorMessage(`Sadrazam scan failed: ${message}`);
-    }
+    await enqueueScan(context, { showInformation: true });
   });
 
   context.subscriptions.push(command);
+
+  const saveSubscription = vscode.workspace.onDidSaveTextDocument(async (document) => {
+    if (!getConfiguration().get("scanOnSave")) {
+      return;
+    }
+
+    const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+
+    if (!folder) {
+      return;
+    }
+
+    await enqueueScan(context, { folder, showInformation: false });
+  });
+
+  context.subscriptions.push(saveSubscription);
+
+  if (getConfiguration().get("scanOnOpen")) {
+    enqueueScan(context, { showInformation: false });
+  }
 }
 
 function deactivate() {
   diagnostics?.dispose();
 }
 
-async function scanWorkspace(context) {
-  const folder = getWorkspaceFolder();
+function getConfiguration() {
+  return vscode.workspace.getConfiguration("sadrazam");
+}
+
+async function enqueueScan(context, options = {}) {
+  pendingScan = pendingScan
+    .catch(() => undefined)
+    .then(() => scanWorkspace(context, options))
+    .catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      outputChannel?.appendLine(`Scan failed: ${message}`);
+      vscode.window.showErrorMessage(`Sadrazam scan failed: ${message}`);
+    });
+
+  await pendingScan;
+}
+
+async function scanWorkspace(context, options = {}) {
+  const folder = options.folder ?? getWorkspaceFolder();
 
   if (!folder) {
     vscode.window.showWarningMessage("Sadrazam needs an open workspace folder.");
@@ -41,10 +77,15 @@ async function scanWorkspace(context) {
       cancellable: false,
     },
     async () => {
+      outputChannel?.appendLine(`Scanning ${folder.uri.fsPath}`);
       const output = await runSadrazam(context, folder.uri.fsPath);
       const report = parseCompactReport(output);
       publishDiagnostics(folder, report.findings);
-      vscode.window.showInformationMessage(`Sadrazam found ${report.findings.length} issue(s).`);
+      outputChannel?.appendLine(`Found ${report.findings.length} issue(s).`);
+
+      if (options.showInformation) {
+        vscode.window.showInformationMessage(`Sadrazam found ${report.findings.length} issue(s).`);
+      }
     },
   );
 }
@@ -57,6 +98,7 @@ function getWorkspaceFolder() {
 function runSadrazam(context, workspaceRoot) {
   const resolved = resolveSadrazamCommand(context);
   const args = [...resolved.args, workspaceRoot, "--reporter", "compact-json"];
+  outputChannel?.appendLine(`Running: ${resolved.command} ${args.join(" ")}`);
 
   return new Promise((resolve, reject) => {
     cp.execFile(
@@ -68,6 +110,10 @@ function runSadrazam(context, workspaceRoot) {
         maxBuffer: 10 * 1024 * 1024,
       },
       (error, stdout, stderr) => {
+        if (stderr.trim()) {
+          outputChannel?.appendLine(stderr.trim());
+        }
+
         if (stdout.trim()) {
           resolve(stdout);
           return;
@@ -85,7 +131,7 @@ function runSadrazam(context, workspaceRoot) {
 }
 
 function resolveSadrazamCommand(context) {
-  const configured = vscode.workspace.getConfiguration("sadrazam").get("cliPath");
+  const configured = getConfiguration().get("cliPath");
 
   if (configured && configured.trim()) {
     return { command: configured.trim(), args: [] };

@@ -12,7 +12,8 @@
     "Linters"
   ],
   "activationEvents": [
-    "onCommand:sadrazam.scanWorkspace"
+    "onCommand:sadrazam.scanWorkspace",
+    "onStartupFinished"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -29,6 +30,16 @@
           "type": "string",
           "default": "",
           "description": "Path to the sadrazam CLI. Leave empty to use the repository dist/index.js during extension development or the sadrazam command on PATH."
+        },
+        "sadrazam.scanOnOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run Sadrazam once when VS Code finishes startup and a workspace folder is open."
+        },
+        "sadrazam.scanOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run Sadrazam after saving a file inside the active workspace."
         }
       }
     }

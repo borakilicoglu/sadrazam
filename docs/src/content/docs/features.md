@@ -37,7 +37,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Trace | Trace packages and exports to find where they are used. |
 | Explain | Use `--explain <type>` to add deterministic explanation details for one finding type. |
 | TypeScript paths | Resolve `compilerOptions.paths` aliases so local aliased imports are not reported as missing packages. |
-| VS Code extension | The `extensions/vscode` scaffold runs compact JSON scans and publishes findings to the Problems panel. |
+| VS Code extension | The `extensions/vscode` scaffold runs compact JSON scans, supports manual/open/save triggers, and publishes findings to the Problems panel. |
 | Watch mode | Use `--watch` for live updates of unused files, exports, and dependency findings. |
 | Workspace | Use `--workspace` to filter workspaces in a monorepo. |
 
