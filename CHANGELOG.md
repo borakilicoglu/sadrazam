@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## v0.1.20
 
 ### Added
 - `namespace-members` findings for unused TypeScript namespace export members in reachable local modules
