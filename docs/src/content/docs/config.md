@@ -15,6 +15,8 @@ Create a config file interactively:
 sadrazam init
 ```
 
+The init flow asks for reporter, scan mode, finding focus, noise exclusions, ignored packages, and optional custom scan inputs before writing `sadrazam.json`.
+
 ```json
 {
   "reporter": "json",

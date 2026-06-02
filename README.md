@@ -108,6 +108,8 @@ Create a config file:
 npx sadrazam init
 ```
 
+`init` guides you through reporter, scan mode, finding focus, noise exclusions, ignored packages, and custom scan inputs before writing `sadrazam.json`.
+
 JSON output:
 
 ```bash

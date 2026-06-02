@@ -22,6 +22,8 @@ Create `sadrazam.json` interactively:
 sadrazam init
 ```
 
+The init prompt covers reporter, scan mode, finding focus, noise exclusions, ignored packages, and custom scan inputs.
+
 Limit the scan to one workspace:
 
 ```bash

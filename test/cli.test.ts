@@ -103,15 +103,14 @@ describe("CLI", () => {
         encoding: "utf8",
         input: [
           "json",
-          "y",
-          "y",
-          "y",
+          "production-strict",
+          "unused-files,namespace-members",
           "unused-files",
-          "react",
           "lodash",
           "y",
-          "anthropic",
-          "claude-3-5-sonnet",
+          "scripts/bootstrap.ts",
+          "tsx,typescript",
+          "y",
         ].join("\n"),
       });
 
@@ -119,15 +118,14 @@ describe("CLI", () => {
 
       expect(config).toEqual({
         reporter: "json",
-        cache: true,
         production: true,
         strict: true,
+        include: ["unused-files", "namespace-members"],
         exclude: ["unused-files"],
-        allowUnusedDependencies: ["react"],
         ignorePackages: ["lodash"],
-        ai: {
-          provider: "anthropic",
-          model: "claude-3-5-sonnet",
+        inputs: {
+          entryFiles: ["scripts/bootstrap.ts"],
+          packageNames: ["tsx", "typescript"],
         },
       });
     } finally {
