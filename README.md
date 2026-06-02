@@ -120,6 +120,8 @@ Compact editor-friendly JSON:
 npx sadrazam . --reporter compact-json
 ```
 
+Compact JSON emits flat findings with best-effort file, line, and column locations for editor integrations.
+
 TOON output:
 
 ```bash

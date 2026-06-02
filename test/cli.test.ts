@@ -239,12 +239,36 @@ describe("CLI", () => {
       expect(unresolvedFindings[0]).toMatchObject({
         severity: "error",
         file: "src/index.ts",
-        line: null,
-        column: null,
+        line: 1,
+        column: 9,
       });
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it("includes compact JSON locations for export findings", () => {
+    const report = JSON.parse(runReport("unused-exports-project", "compact-json"));
+
+    expect(report.findings[0]).toMatchObject({
+      type: "unused-exports",
+      item: "src/lib.ts: unusedHelper",
+      file: "src/lib.ts",
+      line: 5,
+      column: 17,
+    });
+  });
+
+  it("includes compact JSON locations for namespace member findings", () => {
+    const report = JSON.parse(runReport("namespace-members-project", "compact-json"));
+
+    expect(report.findings[0]).toMatchObject({
+      type: "namespace-members",
+      item: "src/lib.ts: Tools.unused",
+      file: "src/lib.ts",
+      line: 6,
+      column: 19,
+    });
   });
 
   it("limits displayed JSON finding items without changing summary counts", () => {

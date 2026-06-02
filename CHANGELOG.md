@@ -9,6 +9,7 @@
 - `compact-json` reporter for editor and extension integrations
 - VS Code extension scaffold with a manual workspace scan command
 - VS Code extension `scanOnOpen`, `scanOnSave`, and output channel support
+- Best-effort `line` and `column` locations in `compact-json` findings
 
 ## v0.1.19
 

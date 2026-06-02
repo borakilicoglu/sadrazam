@@ -85,6 +85,11 @@ export interface ScanParseStats {
   fallbackFiles: number;
 }
 
+export interface SourceLocation {
+  line: number;
+  column: number;
+}
+
 export interface ScanResult {
   rootDir: string;
   packagePath: string;
@@ -105,6 +110,7 @@ export interface ScanResult {
   unusedExports: string[];
   duplicateExports: string[];
   unusedNamespaceMembers: string[];
+  findingLocations: Record<string, SourceLocation>;
   performance: ScanPerformance;
   memory: ScanMemory;
   parseStats: ScanParseStats;
@@ -173,6 +179,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
         cached: true,
         memory: getProcessMemoryUsage(),
         parseStats: cachedResult.parseStats ?? { oxcFiles: 0, fallbackFiles: 0 },
+        findingLocations: cachedResult.findingLocations ?? {},
         performance: {
           discoverInputsMs: roundMs(discoverInputsMs),
           scriptParseMs: roundMs(scriptParseMs),
@@ -217,11 +224,13 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
           ignoredExportNames,
           isProduction: isProductionFilePath(absoluteRoot, filePath),
         },
+        source,
         backend,
       };
     }),
   );
   const fileResults = parsedFiles.map((file) => file.result);
+  const sourceByRelativePath = new Map(parsedFiles.map((file) => [file.result.relativePath, file.source] as const));
   const parseStats = collectParseStats(parsedFiles.map((file) => file.backend));
   const readFilesMs = nodePerformance.now() - readFilesStart;
 
@@ -297,6 +306,13 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
     aliases,
   );
+  const findingLocations = collectFindingLocations({
+    unresolvedImports,
+    unusedExports,
+    duplicateExports,
+    unusedNamespaceMembers,
+    sourceByRelativePath,
+  });
   const analysisMs = nodePerformance.now() - analysisStart;
 
   const resultWithoutRuntime = {
@@ -319,6 +335,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     unusedExports,
     duplicateExports,
     unusedNamespaceMembers,
+    findingLocations,
     parseStats,
   };
 
@@ -573,6 +590,106 @@ function collectPackageTraces(
       .map(([packageName, entries]) => [packageName, [...entries].sort()] as const)
       .sort(([left], [right]) => left.localeCompare(right)),
   );
+}
+
+function collectFindingLocations(input: {
+  unresolvedImports: string[];
+  unusedExports: string[];
+  duplicateExports: string[];
+  unusedNamespaceMembers: string[];
+  sourceByRelativePath: Map<string, string>;
+}): Record<string, SourceLocation> {
+  const locations = new Map<string, SourceLocation>();
+
+  for (const item of input.unresolvedImports) {
+    const parsed = parseFindingItem(item);
+    const source = parsed ? input.sourceByRelativePath.get(parsed.file) : undefined;
+    const location = source && parsed ? findStringLiteralLocation(source, parsed.detail) : null;
+    addFindingLocation(locations, "unresolved-imports", item, location);
+  }
+
+  for (const item of input.unusedExports) {
+    const parsed = parseFindingItem(item);
+    const source = parsed ? input.sourceByRelativePath.get(parsed.file) : undefined;
+    const location = source && parsed ? findIdentifierLocation(source, parsed.detail) : null;
+    addFindingLocation(locations, "unused-exports", item, location);
+  }
+
+  for (const item of input.duplicateExports) {
+    const parsed = parseFindingItem(item);
+    const source = parsed ? input.sourceByRelativePath.get(parsed.file) : undefined;
+    const [symbol = ""] = parsed?.detail.split("|") ?? [];
+    const location = source && symbol ? findIdentifierLocation(source, symbol) : null;
+    addFindingLocation(locations, "duplicate-exports", item, location);
+  }
+
+  for (const item of input.unusedNamespaceMembers) {
+    const parsed = parseFindingItem(item);
+    const source = parsed ? input.sourceByRelativePath.get(parsed.file) : undefined;
+    const memberName = parsed?.detail.split(".").pop() ?? "";
+    const location = source && memberName ? findIdentifierLocation(source, memberName) : null;
+    addFindingLocation(locations, "namespace-members", item, location);
+  }
+
+  return Object.fromEntries([...locations.entries()].sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function addFindingLocation(
+  locations: Map<string, SourceLocation>,
+  type: string,
+  item: string,
+  location: SourceLocation | null,
+): void {
+  if (location) {
+    locations.set(`${type}:${item}`, location);
+  }
+}
+
+function parseFindingItem(item: string): { file: string; detail: string } | null {
+  const separator = item.indexOf(": ");
+
+  if (separator === -1) {
+    return null;
+  }
+
+  return {
+    file: item.slice(0, separator),
+    detail: item.slice(separator + 2),
+  };
+}
+
+function findStringLiteralLocation(source: string, value: string): SourceLocation | null {
+  const patterns = [`"${value}"`, `'${value}'`, `\`${value}\``];
+
+  for (const pattern of patterns) {
+    const index = source.indexOf(pattern);
+
+    if (index !== -1) {
+      return toSourceLocation(source, index + 1);
+    }
+  }
+
+  return null;
+}
+
+function findIdentifierLocation(source: string, name: string): SourceLocation | null {
+  const escaped = escapeRegExp(name);
+  const match = new RegExp(`\\b${escaped}\\b`).exec(source);
+
+  return match?.index === undefined ? null : toSourceLocation(source, match.index);
+}
+
+function toSourceLocation(source: string, index: number): SourceLocation {
+  const before = source.slice(0, index);
+  const lines = before.split("\n");
+  const line = lines.length;
+  const column = (lines[lines.length - 1]?.length ?? 0) + 1;
+
+  return { line, column };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
 }
 
 function getUnusedFiles(

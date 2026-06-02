@@ -45,6 +45,8 @@ Get compact editor-friendly output:
 sadrazam . --reporter compact-json
 ```
 
+Compact JSON includes best-effort `file`, `line`, and `column` fields for local import and export findings.
+
 Explain one finding type:
 
 ```bash

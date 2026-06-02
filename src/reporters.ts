@@ -722,6 +722,7 @@ function renderCompactJsonReport(input: RenderReportInput) {
     workspaceFindings.flatMap((finding) =>
       finding.items.map((item) => {
         const file = getFindingFile(finding.type, item);
+        const location = result.findingLocations[`${finding.type}:${item}`];
 
         return {
           workspace: {
@@ -735,8 +736,8 @@ function renderCompactJsonReport(input: RenderReportInput) {
           item,
           message: `${finding.title}: ${item}`,
           file,
-          line: null,
-          column: null,
+          line: location?.line ?? null,
+          column: location?.column ?? null,
         };
       }),
     ),
