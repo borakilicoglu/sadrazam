@@ -19,6 +19,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | JSDoc tags | Tag exports with `@sadrazam-ignore` or `@sadrazam-keep` to suppress unused export findings. |
 | Memory usage | Use `--memory` for peak heap and RSS insight. |
 | Monorepos | Package workspaces, `pnpm-workspace.yaml`, Lerna, and Rush workspace configs are first-class and can be filtered with `--workspace`. |
+| Namespace members | Report unused TypeScript namespace export members when reachable local imports only use specific members. |
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |

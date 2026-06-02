@@ -170,7 +170,7 @@ npx sadrazam . --explain unused-files
 Focus on export hygiene:
 
 ```bash
-npx sadrazam . --include unused-exports,duplicate-exports
+npx sadrazam . --include unused-exports,duplicate-exports,namespace-members
 ```
 
 Limit displayed items per finding without changing the scan result or exit code:
@@ -202,6 +202,7 @@ AI will:
 - unused dependency detection
 - unresolved local import detection
 - unused file + export detection
+- TypeScript namespace member detection
 - monorepo & workspace support
 - TypeScript path alias support
 - OXC-backed parser and local resolver

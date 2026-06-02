@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Unreleased
+
+### Added
+- `namespace-members` findings for unused TypeScript namespace export members in reachable local modules
+- `--include`, `--exclude`, and `--explain` support for namespace member findings
+
 ## v0.1.19
 
 ### Added

@@ -54,6 +54,7 @@ const SUPPORTED_FINDING_TYPES: FindingType[] = [
   "unused-files",
   "unused-exports",
   "duplicate-exports",
+  "namespace-members",
 ];
 
 program

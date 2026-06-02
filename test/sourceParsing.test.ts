@@ -77,6 +77,7 @@ export default renamed;
       ],
       exportedNames: ["LocalType", "default", "localValue"],
       duplicateExportAliases: [],
+      namespaceMembers: [],
       ignoredExportNames: [],
     });
   });
@@ -109,6 +110,7 @@ export const used = real;
       ],
       exportedNames: ["used"],
       duplicateExportAliases: [],
+      namespaceMembers: [],
       ignoredExportNames: [],
     });
     expect(parseLocalReferences(source)).toEqual([
@@ -119,5 +121,48 @@ export const used = real;
       },
     ]);
     expect(parseExportedNames(source)).toEqual(["used"]);
+  });
+
+  it("parses exported namespace members and member usage", () => {
+    const source = `
+import { Tools as LocalTools } from "./lib";
+
+LocalTools.used();
+
+export namespace Tools {
+  export function used(): string {
+    return "used";
+  }
+
+  export const unused = "unused";
+}
+`;
+
+    expect(parseFileSymbols(source, [])).toMatchObject({
+      localReferences: [
+        {
+          specifier: "./lib",
+          importedNames: ["Tools"],
+          usesAllExports: false,
+          namespaceMemberUses: [
+            {
+              namespaceName: "Tools",
+              memberNames: ["used"],
+            },
+          ],
+        },
+      ],
+      exportedNames: ["Tools"],
+      namespaceMembers: [
+        {
+          namespaceName: "Tools",
+          memberName: "unused",
+        },
+        {
+          namespaceName: "Tools",
+          memberName: "used",
+        },
+      ],
+    });
   });
 });

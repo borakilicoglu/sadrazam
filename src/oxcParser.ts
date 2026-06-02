@@ -1,6 +1,6 @@
 import { parseSync, type ParseResult, type Span } from "oxc-parser";
 
-import type { FileSymbols, LocalReference } from "./symbolParser.js";
+import type { FileSymbols, LocalReference, NamespaceMember } from "./symbolParser.js";
 
 export function parseFileSymbolsWithOxc(
   source: string,
@@ -23,6 +23,8 @@ export function parseFileSymbolsWithOxc(
   const references: LocalReference[] = [];
   const exportedNames = new Set<string>();
   const duplicateAliases = new Map<string, Set<string>>();
+  const namespaceMembers: NamespaceMember[] = [];
+  const memberUsesByObject = collectMemberUsesByObject(result.program);
 
   for (const staticImport of result.module.staticImports) {
     const specifier = staticImport.moduleRequest.value.trim();
@@ -37,10 +39,12 @@ export function parseFileSymbolsWithOxc(
       continue;
     }
 
+    const namespaceMemberUses = parseOxcNamespaceMemberUses(staticImport.entries, memberUsesByObject);
     references.push({
       specifier,
       importedNames: parseOxcImportNames(staticImport.entries),
       usesAllExports: staticImport.entries.some((entry) => entry.importName.kind === "NamespaceObject"),
+      ...(namespaceMemberUses ? { namespaceMemberUses } : {}),
     });
   }
 
@@ -81,7 +85,7 @@ export function parseFileSymbolsWithOxc(
   }
 
   collectCommonJsReferences(result.program, allSpecifiers, references);
-  collectOxcExportDeclarations(source, result.program, exportedNames, duplicateAliases);
+  collectOxcExportDeclarations(source, result.program, exportedNames, duplicateAliases, namespaceMembers);
 
   return {
     allSpecifiers: [...allSpecifiers].sort(),
@@ -90,6 +94,9 @@ export function parseFileSymbolsWithOxc(
     duplicateExportAliases: [...duplicateAliases.entries()]
       .map(([canonical, aliases]) => ({ canonical, aliases: [...aliases].sort() }))
       .sort((left, right) => left.canonical.localeCompare(right.canonical)),
+    namespaceMembers: namespaceMembers.sort((left, right) =>
+      `${left.namespaceName}.${left.memberName}`.localeCompare(`${right.namespaceName}.${right.memberName}`),
+    ),
     ignoredExportNames,
   };
 }
@@ -99,11 +106,17 @@ function collectOxcExportDeclarations(
   program: unknown,
   exportedNames: Set<string>,
   duplicateAliases: Map<string, Set<string>>,
+  namespaceMembers: NamespaceMember[],
 ): void {
   const candidates: Array<{ alias: string; canonical: string; start: number }> = [];
+  const namespaceBodyRanges = collectNamespaceBodyRanges(program);
 
   visitNode(program, (node) => {
     if (node.type !== "ExportNamedDeclaration" && node.type !== "ExportDefaultDeclaration") {
+      return;
+    }
+
+    if (isInsideRange(getNodeStart(node), namespaceBodyRanges)) {
       return;
     }
 
@@ -145,6 +158,10 @@ function collectOxcExportDeclarations(
         )
       ) {
         exportedNames.add(id.name);
+
+        if (declaration.type === "TSModuleDeclaration") {
+          collectOxcNamespaceMembers(declaration, id.name, namespaceMembers);
+        }
       }
       return;
     }
@@ -165,8 +182,193 @@ function collectOxcExportDeclarations(
   }
 }
 
+function collectOxcNamespaceMembers(
+  declaration: Record<string, unknown>,
+  namespaceName: string,
+  namespaceMembers: NamespaceMember[],
+): void {
+  const body = declaration.body;
+
+  if (!isRecord(body)) {
+    return;
+  }
+
+  const statements = Array.isArray(body.body) ? body.body : [];
+
+  for (const statement of statements) {
+    if (!isRecord(statement)) {
+      continue;
+    }
+
+    if (statement.type === "ExportNamedDeclaration") {
+      collectNamedNamespaceMembers(statement, namespaceName, namespaceMembers);
+      continue;
+    }
+
+    if (statement.type === "ExportDefaultDeclaration") {
+      namespaceMembers.push({ namespaceName, memberName: "default" });
+    }
+  }
+}
+
+function collectNamedNamespaceMembers(
+  node: Record<string, unknown>,
+  namespaceName: string,
+  namespaceMembers: NamespaceMember[],
+): void {
+  const declaration = node.declaration;
+
+  if (isRecord(declaration)) {
+    if (declaration.type === "VariableDeclaration") {
+      const declarations = Array.isArray(declaration.declarations) ? declaration.declarations : [];
+
+      for (const declarator of declarations) {
+        if (isRecord(declarator) && isIdentifierRecord(declarator.id)) {
+          namespaceMembers.push({ namespaceName, memberName: declarator.id.name });
+        }
+      }
+      return;
+    }
+
+    if (isIdentifierRecord(declaration.id)) {
+      namespaceMembers.push({ namespaceName, memberName: declaration.id.name });
+      return;
+    }
+  }
+
+  const entries = Array.isArray(node.specifiers) ? node.specifiers : [];
+
+  for (const entry of entries) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+
+    const exportName = parseOxcExportNameFromUnknown(entry.exportName);
+
+    if (exportName) {
+      namespaceMembers.push({ namespaceName, memberName: exportName });
+    }
+  }
+}
+
+function parseOxcExportNameFromUnknown(exportName: unknown): string | null {
+  if (!isRecord(exportName)) {
+    return null;
+  }
+
+  if (exportName.kind === "Default") {
+    return "default";
+  }
+
+  return exportName.kind === "Name" && typeof exportName.name === "string" ? exportName.name : null;
+}
+
+function collectMemberUsesByObject(program: unknown): Map<string, Set<string>> {
+  const uses = new Map<string, Set<string>>();
+
+  visitNode(program, (node) => {
+    if (node.type !== "MemberExpression" || node.computed !== false) {
+      return;
+    }
+
+    const object = node.object;
+    const property = node.property;
+
+    if (!isIdentifierRecord(object) || !isIdentifierRecord(property)) {
+      return;
+    }
+
+    const members = uses.get(object.name) ?? new Set<string>();
+    members.add(property.name);
+    uses.set(object.name, members);
+  });
+
+  return uses;
+}
+
+function parseOxcNamespaceMemberUses(
+  entries: ParseResult["module"]["staticImports"][number]["entries"],
+  memberUsesByObject: Map<string, Set<string>>,
+): LocalReference["namespaceMemberUses"] {
+  const uses = new Map<string, Set<string>>();
+
+  for (const entry of entries) {
+    if (entry.importName.kind !== "Name" || !entry.importName.name) {
+      continue;
+    }
+
+    const localName = getOxcImportLocalName(entry) ?? entry.importName.name;
+    const memberNames = memberUsesByObject.get(localName);
+
+    if (!memberNames || memberNames.size === 0) {
+      continue;
+    }
+
+    const existing = uses.get(entry.importName.name) ?? new Set<string>();
+
+    for (const memberName of memberNames) {
+      existing.add(memberName);
+    }
+
+    uses.set(entry.importName.name, existing);
+  }
+
+  if (uses.size === 0) {
+    return undefined;
+  }
+
+  return [...uses.entries()]
+    .map(([namespaceName, memberNames]) => ({
+      namespaceName,
+      memberNames: [...memberNames].sort(),
+    }))
+    .sort((left, right) => left.namespaceName.localeCompare(right.namespaceName));
+}
+
+function getOxcImportLocalName(
+  entry: ParseResult["module"]["staticImports"][number]["entries"][number],
+): string | null {
+  const localName = "localName" in entry ? entry.localName : null;
+
+  if (isRecord(localName) && typeof localName.name === "string") {
+    return localName.name;
+  }
+
+  if (isRecord(localName) && typeof localName.value === "string") {
+    return localName.value;
+  }
+
+  if (typeof localName === "string") {
+    return localName;
+  }
+
+  return null;
+}
+
 function getNodeStart(node: Record<string, unknown>): number {
   return typeof node.start === "number" ? node.start : 0;
+}
+
+function getNodeEnd(node: Record<string, unknown>): number {
+  return typeof node.end === "number" ? node.end : 0;
+}
+
+function collectNamespaceBodyRanges(program: unknown): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+
+  visitNode(program, (node) => {
+    if (node.type !== "TSModuleDeclaration" || !isRecord(node.body)) {
+      return;
+    }
+
+    ranges.push({ start: getNodeStart(node.body), end: getNodeEnd(node.body) });
+  });
+
+  return ranges;
+}
+
+function isInsideRange(position: number, ranges: Array<{ start: number; end: number }>): boolean {
+  return ranges.some((range) => position > range.start && position < range.end);
 }
 
 function hasAliasJsDocBefore(source: string, start: number): boolean {

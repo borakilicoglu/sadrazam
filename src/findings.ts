@@ -76,6 +76,11 @@ export function getActiveFindings(
       title: "Duplicate exports",
       items: result.duplicateExports,
     },
+    {
+      type: "namespace-members",
+      title: "Unused namespace members",
+      items: result.unusedNamespaceMembers,
+    },
   ];
 
   const preprocessedCandidates = candidates.map((candidate) => ({
@@ -127,7 +132,7 @@ function getPatternsForFinding(
     return preprocessors.filePatterns;
   }
 
-  if (type === "unused-exports" || type === "duplicate-exports") {
+  if (type === "unused-exports" || type === "duplicate-exports" || type === "namespace-members") {
     return preprocessors.exportPatterns;
   }
 

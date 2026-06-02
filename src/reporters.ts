@@ -15,7 +15,8 @@ export type FindingType =
   | "misplaced-devDependencies"
   | "unused-files"
   | "unused-exports"
-  | "duplicate-exports";
+  | "duplicate-exports"
+  | "namespace-members";
 
 export interface ActiveFinding {
   type: FindingType;
@@ -396,6 +397,7 @@ function buildStructuredReport(input: RenderReportInput) {
       unusedFiles: result.unusedFiles,
       unusedExports: result.unusedExports,
       duplicateExports: result.duplicateExports,
+      unusedNamespaceMembers: result.unusedNamespaceMembers,
       performance: input.performance ? result.performance : null,
       memory: input.memory ? result.memory : null,
       traces: input.trace
@@ -671,6 +673,7 @@ function renderSarifReport(input: RenderReportInput) {
     { id: 'unused-files', name: 'Unused files', shortDescription: { text: 'A source file is unreachable from known entries.' } },
     { id: 'unused-exports', name: 'Unused exports', shortDescription: { text: 'An export in a reachable module is not used.' } },
     { id: 'duplicate-exports', name: 'Duplicate exports', shortDescription: { text: 'A reachable module exports aliases for the same local symbol.' } },
+    { id: 'namespace-members', name: 'Unused namespace members', shortDescription: { text: 'A TypeScript namespace export member is not used.' } },
   ];
 
   const results = input.workspaces.flatMap(({ workspace, result, findings }) =>
@@ -768,6 +771,17 @@ function buildExplainPayload(
           symbols: symbols.split("|").filter(Boolean),
         };
       }),
+    };
+  }
+
+  if (findingType === "namespace-members") {
+    return {
+      type: findingType,
+      entryFiles,
+      items: result.unusedNamespaceMembers.map((entry) => ({
+        item: entry,
+        reason: "Namespace member is not referenced by any reachable local import.",
+      })),
     };
   }
 

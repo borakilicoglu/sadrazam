@@ -58,6 +58,7 @@ export interface FileScanResult {
   localReferences: LocalReference[];
   exportedNames: string[];
   duplicateExportAliases: string[];
+  namespaceMembers: string[];
   ignoredExportNames: string[];
   isProduction: boolean;
 }
@@ -103,6 +104,7 @@ export interface ScanResult {
   unusedFiles: string[];
   unusedExports: string[];
   duplicateExports: string[];
+  unusedNamespaceMembers: string[];
   performance: ScanPerformance;
   memory: ScanMemory;
   parseStats: ScanParseStats;
@@ -192,7 +194,14 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
         options.jsdocIgnoreExportTags ?? DEFAULT_JSDOC_IGNORE_EXPORT_TAGS,
         filePath,
       );
-      const { allSpecifiers, localReferences, exportedNames, duplicateExportAliases, ignoredExportNames } = symbols;
+      const {
+        allSpecifiers,
+        localReferences,
+        exportedNames,
+        duplicateExportAliases,
+        namespaceMembers,
+        ignoredExportNames,
+      } = symbols;
       const imports = allSpecifiers;
       const relativePath = path.relative(absoluteRoot, filePath) || path.basename(filePath);
 
@@ -204,6 +213,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
           localReferences,
           exportedNames,
           duplicateExportAliases: duplicateExportAliases.map((entry) => `${entry.canonical}|${entry.aliases.join("|")}`),
+          namespaceMembers: namespaceMembers.map((entry) => `${entry.namespaceName}.${entry.memberName}`),
           ignoredExportNames,
           isProduction: isProductionFilePath(absoluteRoot, filePath),
         },
@@ -280,6 +290,13 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
     aliases,
   );
+  const unusedNamespaceMembers = getUnusedNamespaceMembers(
+    absoluteRoot,
+    fileResults,
+    packageMetadata.entrySpecifiers,
+    mergeFiles(scriptAnalysis.fileEntries, pluginAnalysis.fileEntries, inputAnalysis.fileEntries),
+    aliases,
+  );
   const analysisMs = nodePerformance.now() - analysisStart;
 
   const resultWithoutRuntime = {
@@ -301,6 +318,7 @@ export async function scanProject(rootDir: string, options: ScanOptions = {}): P
     unusedFiles,
     unusedExports,
     duplicateExports,
+    unusedNamespaceMembers,
     parseStats,
   };
 
@@ -664,6 +682,79 @@ function getDuplicateExports(
     .sort();
 }
 
+function getUnusedNamespaceMembers(
+  rootDir: string,
+  files: FileScanResult[],
+  packageEntries: string[],
+  scriptEntryFiles: string[],
+  aliases: AliasEntry[],
+): string[] {
+  const filePathSet = new Set(files.map((file) => file.filePath));
+  const { entryFiles, reachableFiles } = getReachableFilePaths(
+    rootDir,
+    files,
+    packageEntries,
+    scriptEntryFiles,
+    aliases,
+  );
+
+  if (reachableFiles.size === 0) {
+    return [];
+  }
+
+  const usedMembers = new Map<string, Set<string>>();
+
+  for (const entryFile of entryFiles) {
+    markAllNamespaceMembersUsed(entryFile, files, usedMembers);
+  }
+
+  for (const file of files) {
+    if (!reachableFiles.has(file.filePath)) {
+      continue;
+    }
+
+    for (const reference of file.localReferences) {
+      const target = resolveLocalImport(file.filePath, reference.specifier, filePathSet, aliases);
+
+      if (!target) {
+        continue;
+      }
+
+      if (reference.usesAllExports) {
+        markAllNamespaceMembersUsed(target, files, usedMembers);
+        continue;
+      }
+
+      const explicitNamespaceUses = new Set(
+        (reference.namespaceMemberUses ?? []).map((memberUse) => memberUse.namespaceName),
+      );
+
+      for (const memberUse of reference.namespaceMemberUses ?? []) {
+        for (const memberName of memberUse.memberNames) {
+          markNamespaceMemberUsed(target, `${memberUse.namespaceName}.${memberName}`, usedMembers);
+        }
+      }
+
+      for (const importedName of reference.importedNames) {
+        if (!explicitNamespaceUses.has(importedName)) {
+          markNamespaceMembersForExportUsed(target, importedName, files, usedMembers);
+        }
+      }
+    }
+  }
+
+  return files
+    .filter((file) => reachableFiles.has(file.filePath) && file.namespaceMembers.length > 0)
+    .flatMap((file) => {
+      const used = usedMembers.get(file.filePath) ?? new Set<string>();
+
+      return file.namespaceMembers
+        .filter((member) => !used.has(member))
+        .map((member) => `${file.relativePath}: ${member}`);
+    })
+    .sort();
+}
+
 function getReachableFilePaths(
   rootDir: string,
   files: FileScanResult[],
@@ -749,6 +840,51 @@ function markExportUsed(
   const names = usedExports.get(filePath) ?? new Set<string>();
   names.add(exportName);
   usedExports.set(filePath, names);
+}
+
+function markAllNamespaceMembersUsed(
+  filePath: string,
+  files: FileScanResult[],
+  usedMembers: Map<string, Set<string>>,
+): void {
+  const file = files.find((candidate) => candidate.filePath === filePath);
+
+  if (!file) {
+    return;
+  }
+
+  for (const member of file.namespaceMembers) {
+    markNamespaceMemberUsed(filePath, member, usedMembers);
+  }
+}
+
+function markNamespaceMembersForExportUsed(
+  filePath: string,
+  namespaceName: string,
+  files: FileScanResult[],
+  usedMembers: Map<string, Set<string>>,
+): void {
+  const file = files.find((candidate) => candidate.filePath === filePath);
+
+  if (!file) {
+    return;
+  }
+
+  for (const member of file.namespaceMembers) {
+    if (member.startsWith(`${namespaceName}.`)) {
+      markNamespaceMemberUsed(filePath, member, usedMembers);
+    }
+  }
+}
+
+function markNamespaceMemberUsed(
+  filePath: string,
+  member: string,
+  usedMembers: Map<string, Set<string>>,
+): void {
+  const members = usedMembers.get(filePath) ?? new Set<string>();
+  members.add(member);
+  usedMembers.set(filePath, members);
 }
 
 function resolveEntryFiles(

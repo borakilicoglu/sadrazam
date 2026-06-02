@@ -5,6 +5,7 @@ export interface LocalReference {
   specifier: string;
   importedNames: string[];
   usesAllExports: boolean;
+  namespaceMemberUses?: NamespaceMemberUse[];
 }
 
 export interface FileSymbols {
@@ -16,6 +17,8 @@ export interface FileSymbols {
   exportedNames: string[];
   /** Export aliases that expose the same local identifier more than once. */
   duplicateExportAliases: DuplicateExportAlias[];
+  /** Exported namespace members from this file. */
+  namespaceMembers: NamespaceMember[];
   /** Exports tagged with a JSDoc ignore tag. */
   ignoredExportNames: string[];
 }
@@ -23,6 +26,16 @@ export interface FileSymbols {
 export interface DuplicateExportAlias {
   canonical: string;
   aliases: string[];
+}
+
+export interface NamespaceMember {
+  namespaceName: string;
+  memberName: string;
+}
+
+export interface NamespaceMemberUse {
+  namespaceName: string;
+  memberNames: string[];
 }
 
 export type ParseBackend = "oxc" | "regex";
@@ -48,6 +61,7 @@ const EXPORT_DECLARATION_RES = [
 ];
 const EXPORT_LIST_RE = /\bexport\s*{([^}]+)}(?!\s*from)/g;
 const EXPORT_TYPE_LIST_RE = /\bexport\s+type\s*{([^}]+)}(?!\s*from)/g;
+const EXPORT_NAMESPACE_RE = /\bexport\s+(?:declare\s+)?(?:namespace|module)\s+([A-Za-z_$][\w$]*)\s*{([\s\S]*?)^}/gm;
 
 const JSDOC_EXPORT_DECLARATION_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s+(?:declare\s+)?(?:const|let|var|class|interface|type|enum|async\s+function|function)\s+([A-Za-z_$][\w$]*)/g;
 const JSDOC_EXPORT_LIST_RE = /\/\*\*([\s\S]*?)\*\/\s*export\s*(?:type\s*)?{([^}]+)}(?!\s*from)/g;
@@ -167,6 +181,7 @@ export function parseFileSymbolsDetailed(
       localReferences: dedupeReferences(references),
       exportedNames: collectExportedNames(source, codeMask),
       duplicateExportAliases: collectDuplicateExportAliases(source, codeMask),
+      namespaceMembers: collectNamespaceMembers(source, codeMask),
       ignoredExportNames,
     },
     backend: "regex",
@@ -362,6 +377,33 @@ function collectDuplicateExportAliases(source: string, codeMask: boolean[]): Dup
     .sort((left, right) => left.canonical.localeCompare(right.canonical));
 }
 
+function collectNamespaceMembers(source: string, codeMask: boolean[]): NamespaceMember[] {
+  const members = new Set<string>();
+
+  for (const match of source.matchAll(EXPORT_NAMESPACE_RE)) {
+    if (!isCodeMatch(match, codeMask)) continue;
+    const namespaceName = match[1]?.trim();
+    const body = match[2] ?? "";
+
+    if (!namespaceName) {
+      continue;
+    }
+
+    const bodyMask = createJavaScriptCodeMask(body);
+
+    for (const name of collectExportedNames(body, bodyMask)) {
+      if (name !== "default") {
+        members.add(`${namespaceName}.${name}`);
+      }
+    }
+  }
+
+  return [...members].sort().map((entry) => {
+    const [namespaceName = "", memberName = ""] = entry.split(".");
+    return { namespaceName, memberName };
+  });
+}
+
 function addDuplicateAlias(aliasesByCanonical: Map<string, Set<string>>, canonical: string, alias: string): void {
   const aliases = aliasesByCanonical.get(canonical) ?? new Set<string>();
   aliases.add(alias);
@@ -439,7 +481,10 @@ function dedupeReferences(references: LocalReference[]): LocalReference[] {
   const seen = new Set<string>();
 
   return references.filter((reference) => {
-    const key = `${reference.specifier}:${reference.usesAllExports}:${reference.importedNames.join(",")}`;
+    const namespaceUses = reference.namespaceMemberUses
+      ?.map((use) => `${use.namespaceName}=${use.memberNames.join(",")}`)
+      .join(";") ?? "";
+    const key = `${reference.specifier}:${reference.usesAllExports}:${reference.importedNames.join(",")}:${namespaceUses}`;
 
     if (seen.has(key)) {
       return false;

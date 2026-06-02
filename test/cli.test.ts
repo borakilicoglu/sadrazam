@@ -1285,6 +1285,35 @@ describe("CLI", () => {
     expect(report.workspaces[0].unusedExports).toEqual(["src/lib.ts: unusedHelper"]);
   });
 
+  it("reports unused namespace members in reachable files", () => {
+    const report = runJsonReport("namespace-members-project");
+    const workspace = report.workspaces[0];
+
+    expect(workspace.findings).toEqual([
+      {
+        type: "namespace-members",
+        title: "Unused namespace members",
+        items: ["src/lib.ts: Tools.unused"],
+      },
+    ]);
+    expect(workspace.unusedNamespaceMembers).toEqual(["src/lib.ts: Tools.unused"]);
+  });
+
+  it("explains unused namespace member findings", () => {
+    const report = runJsonReport("namespace-members-project", ["--explain", "namespace-members"]);
+
+    expect(report.workspaces[0].explain).toEqual({
+      type: "namespace-members",
+      entryFiles: [],
+      items: [
+        {
+          item: "src/lib.ts: Tools.unused",
+          reason: "Namespace member is not referenced by any reachable local import.",
+        },
+      ],
+    });
+  });
+
   it("reports duplicate export aliases in reachable files", () => {
     const report = runJsonReport("duplicate-exports-project");
     const workspace = report.workspaces[0];
