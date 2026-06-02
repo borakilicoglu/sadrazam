@@ -39,6 +39,12 @@ Get machine-readable output:
 sadrazam . --reporter json
 ```
 
+Get compact editor-friendly output:
+
+```bash
+sadrazam . --reporter compact-json
+```
+
 Explain one finding type:
 
 ```bash

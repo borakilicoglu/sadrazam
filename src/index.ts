@@ -92,6 +92,7 @@ program
 Examples:
   sadrazam .
   sadrazam . --reporter json
+  sadrazam . --reporter compact-json
   sadrazam . --reporter toon
   sadrazam . --reporter markdown
   sadrazam . --reporter sarif

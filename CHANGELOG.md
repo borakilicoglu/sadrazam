@@ -6,6 +6,7 @@
 - `namespace-members` findings for unused TypeScript namespace export members in reachable local modules
 - `--include`, `--exclude`, and `--explain` support for namespace member findings
 - Node.js `>=20.19.0` package engine metadata
+- `compact-json` reporter for editor and extension integrations
 
 ## v0.1.19
 

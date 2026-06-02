@@ -143,10 +143,10 @@ async function promptConfig(context: DetectedContext, ask: Asker): Promise<Sadra
   console.log("Press Enter to accept defaults, or type a value.\n");
 
   // Reporter
-  const reporter = await ask("Default reporter? (text/json/markdown/sarif) [text]: ");
+  const reporter = await ask("Default reporter? (text/json/compact-json/markdown/sarif) [text]: ");
   const trimmedReporter = reporter.trim();
   if (trimmedReporter && trimmedReporter !== "text") {
-    const valid = ["text", "json", "toon", "markdown", "sarif"];
+    const valid = ["text", "json", "compact-json", "toon", "markdown", "sarif"];
     if (valid.includes(trimmedReporter)) {
       config.reporter = trimmedReporter as NonNullable<SadrazamConfig["reporter"]>;
     } else {

@@ -195,6 +195,58 @@ describe("CLI", () => {
     expect(report).toContain("name=config-project");
   });
 
+  it("renders a compact JSON report for editor integrations", () => {
+    const report = JSON.parse(runReport("unused-files-project", "compact-json"));
+
+    expect(report.schemaVersion).toBe(1);
+    expect(report.summary).toEqual({
+      workspaces: 1,
+      findings: 1,
+    });
+    expect(report.findings).toEqual([
+      {
+        workspace: {
+          name: "unused-files-project",
+          relativeDir: ".",
+          packagePath: expect.stringContaining("test/fixtures/unused-files-project/package.json"),
+        },
+        type: "unused-files",
+        title: "Unused files",
+        severity: "warning",
+        item: "src/unused.ts",
+        message: "Unused files: src/unused.ts",
+        file: "src/unused.ts",
+        line: null,
+        column: null,
+      },
+    ]);
+  });
+
+  it("keeps compact JSON findings untruncated when max show issues is set", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-max-show-compact-json-");
+
+    try {
+      writeFileSync(
+        path.join(tempProject, "src", "index.ts"),
+        `import "./missing-a";\nimport "./missing-b";\nimport "./missing-c";\n\nexport const value = 1;\n`,
+        "utf8",
+      );
+
+      const report = JSON.parse(runReportForDir(tempProject, "compact-json", ["--max-show-issues", "1"]));
+      const unresolvedFindings = report.findings.filter((entry: { type: string }) => entry.type === "unresolved-imports");
+
+      expect(unresolvedFindings).toHaveLength(3);
+      expect(unresolvedFindings[0]).toMatchObject({
+        severity: "error",
+        file: "src/index.ts",
+        line: null,
+        column: null,
+      });
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("limits displayed JSON finding items without changing summary counts", () => {
     const { tempRoot, tempProject } = createTempProject("sadrazam-max-show-json-");
 

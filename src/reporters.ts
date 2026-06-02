@@ -4,7 +4,7 @@ import path from "node:path";
 import type { ScanMemory, ScanResult } from "./scan.js";
 import type { WorkspaceTarget } from "./workspaceFinder.js";
 
-export const SUPPORTED_REPORTERS = ["text", "json", "toon", "markdown", "sarif"] as const;
+export const SUPPORTED_REPORTERS = ["text", "json", "compact-json", "toon", "markdown", "sarif"] as const;
 
 export type ReporterType = (typeof SUPPORTED_REPORTERS)[number];
 export type FindingType =
@@ -94,6 +94,10 @@ export function renderReport(input: RenderReportInput): string {
 
   if (input.reporter === "json") {
     return JSON.stringify(payload, null, 2);
+  }
+
+  if (input.reporter === "compact-json") {
+    return JSON.stringify(renderCompactJsonReport(input), null, 2);
   }
 
   if (input.reporter === "toon") {
@@ -711,6 +715,65 @@ function renderSarifReport(input: RenderReportInput) {
       },
     ],
   };
+}
+
+function renderCompactJsonReport(input: RenderReportInput) {
+  const findings = input.workspaces.flatMap(({ workspace, result, findings: workspaceFindings }) =>
+    workspaceFindings.flatMap((finding) =>
+      finding.items.map((item) => {
+        const file = getFindingFile(finding.type, item);
+
+        return {
+          workspace: {
+            name: workspace.name,
+            relativeDir: workspace.relativeDir,
+            packagePath: result.packagePath,
+          },
+          type: finding.type,
+          title: finding.title,
+          severity: getFindingSeverity(finding.type),
+          item,
+          message: `${finding.title}: ${item}`,
+          file,
+          line: null,
+          column: null,
+        };
+      }),
+    ),
+  );
+
+  return {
+    schemaVersion: 1,
+    targetDir: input.targetDir,
+    summary: {
+      workspaces: input.workspaces.length,
+      findings: findings.length,
+    },
+    findings,
+  };
+}
+
+function getFindingFile(type: FindingType, item: string): string | null {
+  if (type === "unused-files") {
+    return item;
+  }
+
+  if (
+    type === "unresolved-imports"
+    || type === "unused-exports"
+    || type === "duplicate-exports"
+    || type === "namespace-members"
+  ) {
+    return item.split(": ")[0] ?? null;
+  }
+
+  return null;
+}
+
+function getFindingSeverity(type: FindingType): "error" | "warning" {
+  return type === "missing" || type === "unresolved-imports" || type === "misplaced-devDependencies"
+    ? "error"
+    : "warning";
 }
 
 // ---------------------------------------------------------------------------

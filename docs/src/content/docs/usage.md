@@ -34,6 +34,12 @@ Emit JSON:
 sadrazam . --reporter json
 ```
 
+Emit compact editor-friendly JSON:
+
+```bash
+sadrazam . --reporter compact-json
+```
+
 Emit TOON:
 
 ```bash

@@ -114,6 +114,12 @@ JSON output:
 npx sadrazam . --reporter json
 ```
 
+Compact editor-friendly JSON:
+
+```bash
+npx sadrazam . --reporter compact-json
+```
+
 TOON output:
 
 ```bash
@@ -209,7 +215,7 @@ AI will:
 - script-aware scanning
 - CommonJS + modern import support
 - safe auto-fix
-- text, JSON, TOON, markdown, and SARIF output
+- text, JSON, compact JSON, TOON, markdown, and SARIF output
 - AI-powered insights
 
 👉 Full feature list: https://borakilicoglu.github.io/sadrazam/features
