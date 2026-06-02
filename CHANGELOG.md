@@ -7,6 +7,7 @@
 - `--include`, `--exclude`, and `--explain` support for namespace member findings
 - Node.js `>=20.19.0` package engine metadata
 - `compact-json` reporter for editor and extension integrations
+- VS Code extension scaffold with a manual workspace scan command
 
 ## v0.1.19
 

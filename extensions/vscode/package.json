@@ -1,0 +1,36 @@
+{
+  "name": "sadrazam-vscode",
+  "displayName": "Sadrazam",
+  "description": "Run Sadrazam dependency and code-hygiene scans from VS Code.",
+  "version": "0.0.1",
+  "publisher": "sadrazam",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "activationEvents": [
+    "onCommand:sadrazam.scanWorkspace"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sadrazam.scanWorkspace",
+        "title": "Sadrazam: Scan Workspace"
+      }
+    ],
+    "configuration": {
+      "title": "Sadrazam",
+      "properties": {
+        "sadrazam.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the sadrazam CLI. Leave empty to use the repository dist/index.js during extension development or the sadrazam command on PATH."
+        }
+      }
+    }
+  }
+}

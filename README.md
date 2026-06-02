@@ -216,6 +216,7 @@ AI will:
 - CommonJS + modern import support
 - safe auto-fix
 - text, JSON, compact JSON, TOON, markdown, and SARIF output
+- VS Code extension scaffold
 - AI-powered insights
 
 👉 Full feature list: https://borakilicoglu.github.io/sadrazam/features
