@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Unreleased
+
+### Added
+- Built-in UnoCSS, TypeDoc, MSW, Prisma, Changesets, release-it, and semantic-release plugin scanning
+
 ## v0.1.20
 
 ### Added

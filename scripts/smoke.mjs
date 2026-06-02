@@ -304,7 +304,7 @@ const scenarios = [
     args: ["--reporter", "json", "--debug"],
     validate(report) {
       const workspace = report.workspaces[0];
-      assert.deepEqual(workspace.summary.activePlugins, ["docker", "playwright", "vite"]);
+      assert.deepEqual(workspace.summary.activePlugins, ["docker", "playwright", "prisma", "vite"]);
       assert.deepEqual(workspace.externalImports, ["@playwright/test", "prisma", "tsx", "vite"]);
       assert.deepEqual(workspace.findings, [
         {

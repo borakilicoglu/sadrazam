@@ -125,6 +125,14 @@ const PLUGINS: PluginDefinition[] = [
     analyzePackageJson: analyzePrettierPackageJson,
   },
   {
+    ...createToolPlugin("typedoc", ["typedoc"], ["typedoc"], [
+      "typedoc.json",
+      "typedoc.config.{js,cjs,mjs,ts,cts,mts,json,jsonc}",
+    ]),
+    packageFlags: [{ flag: "--plugin" }],
+    analyzeConfig: analyzeTypedocConfig,
+  },
+  {
     ...createToolPlugin("babel", ["babel"], ["@babel/cli"], [
       `babel.config.${CONFIG_EXTENSIONS}`,
       ".babelrc",
@@ -168,10 +176,20 @@ const PLUGINS: PluginDefinition[] = [
     },
     analyzeConfig: analyzePostCssConfig,
   },
-  createToolPlugin("biome", ["biome"], ["@biomejs/biome"], [
-    "biome.json",
-    "biome.jsonc",
-  ]),
+  {
+    ...createToolPlugin("biome", ["biome"], ["@biomejs/biome"], [
+      "biome.json",
+      "biome.jsonc",
+    ]),
+    analyzeConfig: markDeclaredPackage("@biomejs/biome"),
+  },
+  {
+    ...createToolPlugin("unocss", ["unocss"], ["unocss"], [
+      "uno.config.{js,cjs,mjs,ts,cts,mts}",
+      "unocss.config.{js,cjs,mjs,ts,cts,mts}",
+    ]),
+    analyzeConfig: markDeclaredPackage("unocss"),
+  },
   {
     ...createToolPlugin("stylelint", ["stylelint"], ["stylelint"], [
       "stylelint.config.{js,cjs,mjs,ts,cts,mts}",
@@ -260,6 +278,40 @@ const PLUGINS: PluginDefinition[] = [
       "tailwind.config.{js,cjs,mjs,ts}",
       "postcss.config.{js,cjs,mjs,ts}",
     ]),
+  },
+  {
+    ...createToolPlugin("prisma", ["prisma"], ["prisma"], [
+      "prisma/schema.prisma",
+    ], ["prisma/schema.prisma"]),
+    analyzeConfig: markDeclaredPackage("prisma"),
+  },
+  {
+    ...createToolPlugin("msw", ["msw"], ["msw"], [
+      "package.json",
+    ]),
+    analyzePackageJson: analyzeMswPackageJson,
+  },
+  {
+    ...createToolPlugin("changesets", ["changeset", "changesets"], ["@changesets/cli"], [
+      ".changeset/config.json",
+    ], [".changeset/*.md"]),
+    analyzeConfig: markDeclaredPackage("@changesets/cli"),
+  },
+  {
+    ...createToolPlugin("release-it", ["release-it"], ["release-it"], [
+      ".release-it.json",
+      ".release-it.{json,jsonc,yml,yaml}",
+      "release-it.config.{js,cjs,mjs,ts,cts,mts}",
+    ]),
+    analyzeConfig: markDeclaredPackage("release-it"),
+  },
+  {
+    ...createToolPlugin("semantic-release", ["semantic-release"], ["semantic-release"], [
+      ".releaserc",
+      ".releaserc.{json,jsonc,yml,yaml}",
+      "release.config.{js,cjs,mjs,ts,cts,mts}",
+    ]),
+    analyzeConfig: markDeclaredPackage("semantic-release"),
   },
   {
     ...createToolPlugin("typescript", ["tsc", "tsserver"], ["typescript"], [
@@ -545,6 +597,12 @@ function createToolPlugin(
   };
 }
 
+function markDeclaredPackage(packageName: string): NonNullable<PluginDefinition["analyzeConfig"]> {
+  return async (_filePath, context) => {
+    return context.dependencyNames.has(packageName) ? { packages: [packageName] } : null;
+  };
+}
+
 async function collectPluginContribution(
   plugin: PluginDefinition,
   context: PluginContext,
@@ -775,6 +833,45 @@ function analyzePrettierPackageJson(context: PluginContext): PluginContribution 
   return {
     packages: [...new Set(prettierConfig.plugins ?? [])],
   };
+}
+
+async function analyzeTypedocConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readStructuredConfig(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const packages = new Set<string>();
+  addIfDeclared(packages, context, "typedoc");
+
+  for (const value of toArray(config.plugin)) {
+    if (!isLocalStyleReference(value)) {
+      packages.add(getPackageName(value));
+    }
+  }
+
+  return packages.size > 0 ? { packages: [...packages].sort() } : null;
+}
+
+function analyzeMswPackageJson(context: PluginContext): PluginContribution | null {
+  const config = context.packageJson.msw;
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const packages = new Set<string>();
+  const fileEntries = new Set<string>();
+  addIfDeclared(packages, context, "msw");
+
+  if (typeof config.workerDirectory === "string") {
+    fileEntries.add(path.resolve(context.packageDir, config.workerDirectory, "mockServiceWorker.js"));
+  }
+
+  return packages.size > 0 || fileEntries.size > 0
+    ? { packages: [...packages].sort(), fileEntries: [...fileEntries].sort() }
+    : null;
 }
 
 async function analyzeBabelConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
@@ -1819,6 +1916,7 @@ function getKnownCommandPackage(command: string, _tokens: string[]): string | nu
     babel: "@babel/cli",
     biome: "@biomejs/biome",
     changeset: "@changesets/cli",
+    changesets: "@changesets/cli",
     commitlint: "@commitlint/cli",
     eslint: "eslint",
     husky: "husky",
@@ -1831,10 +1929,13 @@ function getKnownCommandPackage(command: string, _tokens: string[]): string | nu
     prisma: "prisma",
     "release-it": "release-it",
     semgrep: "semgrep",
+    "semantic-release": "semantic-release",
     stylelint: "stylelint",
     tsc: "typescript",
+    typedoc: "typedoc",
     tsx: "tsx",
     turbo: "turbo",
+    unocss: "unocss",
     nx: "nx",
     lerna: "lerna",
     rush: "@microsoft/rush",

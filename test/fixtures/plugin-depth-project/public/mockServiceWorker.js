@@ -1,0 +1,1 @@
+// MSW worker fixture.

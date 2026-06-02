@@ -24,6 +24,7 @@ export interface PackageJsonShape {
   babel?: unknown;
   commitlint?: unknown;
   "lint-staged"?: unknown;
+  msw?: unknown;
   prettier?: string | {
     plugins?: string[];
   };

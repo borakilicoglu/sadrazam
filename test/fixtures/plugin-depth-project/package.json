@@ -19,9 +19,17 @@
     "css": "tailwindcss -c ./tailwind.config.cjs",
     "biome": "biome check src/index.ts",
     "stylelint": "stylelint --custom-syntax postcss-scss src/styles.css",
-    "hooks": "lefthook run pre-commit"
+    "hooks": "lefthook run pre-commit",
+    "docs": "typedoc --plugin typedoc-plugin-markdown src/index.ts",
+    "icons": "unocss src/index.ts",
+    "db": "prisma generate",
+    "mock": "msw init public",
+    "release": "release-it",
+    "semantic": "semantic-release",
+    "changeset": "changeset"
   },
   "dependencies": {
+    "@changesets/cli": "^2.0.0",
     "@biomejs/biome": "^2.0.0",
     "@astrojs/mdx": "^4.0.0",
     "@next/bundle-analyzer": "^16.0.0",
@@ -42,21 +50,31 @@
     "html-webpack-plugin": "^5.0.0",
     "jest": "^30.0.0",
     "lefthook": "^1.0.0",
+    "msw": "^2.0.0",
     "next": "^16.0.0",
     "postcss-scss": "^4.0.0",
     "prettier": "^3.0.0",
     "prettier-plugin-tailwindcss": "^1.0.0",
+    "prisma": "^7.0.0",
+    "release-it": "^19.0.0",
     "rollup": "^4.0.0",
+    "semantic-release": "^25.0.0",
     "storybook": "^10.0.0",
     "stylelint": "^16.0.0",
     "stylelint-config-standard": "^36.0.0",
     "stylelint-order": "^7.0.0",
     "tailwindcss": "^4.0.0",
+    "typedoc": "^0.29.0",
+    "typedoc-plugin-markdown": "^4.0.0",
     "ts-jest": "^29.0.0",
     "typescript": "^5.0.0",
     "typescript-plugin-css-modules": "^5.0.0",
+    "unocss": "^66.0.0",
     "vite": "^7.0.0",
     "vitest": "^4.0.0",
     "webpack": "^5.0.0"
+  },
+  "msw": {
+    "workerDirectory": "public"
   }
 }

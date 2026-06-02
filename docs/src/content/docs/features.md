@@ -23,7 +23,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Biome, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, Docker, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lefthook, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, Stylelint, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
+| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Biome, Bitbucket Pipelines, Changesets, CircleCI, Commitlint, Cypress, Docker, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lefthook, Lerna, lint-staged, MSW, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Prisma, release-it, Rollup, Rush, semantic-release, Storybook, Stylelint, SvelteKit, Tailwind, TypeDoc, Turbo, TypeScript, UnoCSS, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
 | Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
 | Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
@@ -70,6 +70,7 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
 | Docker | `Dockerfile`, `Dockerfile.*`, `docker-compose.yml`, `compose.yaml`, or Docker script | Dockerfile `WORKDIR`, `RUN`, `CMD`, `ENTRYPOINT`; Compose `build.context`, `working_dir`, `command`, `entrypoint` |
 | Biome | `@biomejs/biome` package or `biome` script | `biome.json`, `biome.jsonc`, `--config`, `-c` |
+| Changesets | `@changesets/cli` package, `changeset` / `changesets` script, or `.changeset/config.json` | `.changeset/config.json`, `.changeset/*.md` |
 | ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |
 | GitHub Actions | `.github/workflows/*.yml` or `.yaml` | workflow `run` commands, step `working-directory`, local `action.yml` node entries |
 | GitLab CI | `.gitlab-ci.yml` or `.yaml` | `before_script`, `script`, and `after_script` command blocks |
@@ -78,20 +79,26 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | Lefthook | `lefthook` package, `lefthook` script, or `lefthook.yml` / `.lefthook.yml` | hook `run` and `script` command blocks |
 | Lerna | `lerna` package or script, or `lerna.json` | `lerna.json` config entry |
 | lint-staged | `lint-staged` package, script, package config, or lint-staged config file | staged-file command blocks |
+| MSW | `msw` package, `msw` script, or `package.json#msw` | `workerDirectory` service worker file |
 | Next | `next` package or script | `next.config.*`, `pages/**`, `app/**`, `src/pages/**`, `src/app/**` |
 | Nx | `nx` package or script | `nx.json`, `workspace.json`, `project.json`, `plugins` package entries |
 | Playwright | `@playwright/test` or `playwright` package/script | `playwright.config.*`, `tests/**`, `e2e/**` |
 | pnpm workspace | `pnpm-workspace.yaml` | workspace config entry |
 | PostCSS | `postcss` package, `postcss` script, or PostCSS config file | `postcss.config.*`, `.postcssrc*`, `plugins` |
 | Prettier | `prettier` package or script | `.prettierrc*`, `prettier.config.*`, `package.json#prettier`, `--plugin`, `--config` |
+| Prisma | `prisma` package or script | `prisma/schema.prisma` |
+| release-it | `release-it` package or script | `.release-it*`, `release-it.config.*` |
 | Rollup | `rollup` package or script | `rollup.config.*`, `--config`, `-c` |
 | Rush | `rush` package or script, or `rush.json` | `rush.json` config entry |
+| semantic-release | `semantic-release` package or script | `.releaserc*`, `release.config.*` |
 | Storybook | `storybook` package or script | `.storybook/main.*`, `.storybook/preview.*`, stories globs |
 | Stylelint | `stylelint` package or script | `.stylelintrc*`, `stylelint.config.*`, `extends`, `plugins`, `customSyntax`, `--custom-syntax` |
 | SvelteKit | `@sveltejs/kit` package or `svelte-kit` script | `svelte.config.*`, `vite.config.*`, `src/routes/**`, `src/hooks.*` |
 | Tailwind | `tailwindcss` package or script | `tailwind.config.*`, `postcss.config.*`, `-c` |
+| TypeDoc | `typedoc` package or script | `typedoc.json`, `typedoc.config.*`, `plugin`, `--plugin` |
 | Turbo | `turbo` package or script | `turbo.json`, `turbo.jsonc` |
 | TypeScript | `typescript` package or `tsc` script | `tsconfig*.json`, `extends`, `references`, `compilerOptions.plugins` |
+| UnoCSS | `unocss` package or script | `uno.config.*`, `unocss.config.*` |
 | Vite | `vite` package or script | `vite.config.*`, `--config`, `-c` |
 | Vitest | `vitest` package or script | `vitest.config.*`, `--config`, `-c` |
 | webpack | `webpack` package or script | `webpack.config.*`, `--config`, `-c` |
