@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    stylelint:
+      run: stylelint src/styles.css

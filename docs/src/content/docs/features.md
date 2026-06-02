@@ -23,7 +23,7 @@ Sadrazam covers a broad dependency and code-hygiene surface. This page summarize
 | Noise control | Use `--max-show-issues <count>` to limit displayed items while preserving full scan counts and exit behavior. |
 | OXC parser and resolver | JavaScript and TypeScript sources use OXC-backed parsing and local resolution, with fallback for unsupported source forms. |
 | Performance | Use `--performance` for workspace and total timing insights. |
-| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, Docker, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
+| Plugins | Built-in plugin analysis covers Astro, Azure Pipelines, Babel, Biome, Bitbucket Pipelines, CircleCI, Commitlint, Cypress, Docker, ESLint, GitHub Actions, GitLab CI, Husky, Jest, Lefthook, Lerna, lint-staged, Next, Nx, Playwright, pnpm workspace, PostCSS, Prettier, Rollup, Rush, Storybook, Stylelint, SvelteKit, Tailwind, Turbo, TypeScript, Vite, Vitest, and webpack. |
 | Plugins: inputs | Add entry files and package usage through config inputs. |
 | Plugins: CLI arguments | Parse common tool arguments such as `--config`, `-c`, `--plugin`, and `--parser` to enrich analysis. |
 | Plugins: overrides | Force-enable, disable, or override plugin config and entry files with `plugins.<name>`. |
@@ -69,11 +69,13 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | Commitlint | `@commitlint/cli` package, `commitlint` script, package config, or Commitlint config file | `commitlint.config.*`, `.commitlintrc*`, `extends`, `parserPreset`, `plugins` |
 | Cypress | `cypress` package or script | `cypress.config.*`, `cypress/**` |
 | Docker | `Dockerfile`, `Dockerfile.*`, `docker-compose.yml`, `compose.yaml`, or Docker script | Dockerfile `WORKDIR`, `RUN`, `CMD`, `ENTRYPOINT`; Compose `build.context`, `working_dir`, `command`, `entrypoint` |
+| Biome | `@biomejs/biome` package or `biome` script | `biome.json`, `biome.jsonc`, `--config`, `-c` |
 | ESLint | `eslint` package or script | `.eslintrc*`, `eslint.config.*`, `--parser`, `--plugin`, `extends`, `plugins` |
 | GitHub Actions | `.github/workflows/*.yml` or `.yaml` | workflow `run` commands, step `working-directory`, local `action.yml` node entries |
 | GitLab CI | `.gitlab-ci.yml` or `.yaml` | `before_script`, `script`, and `after_script` command blocks |
 | Husky | `husky` package, `husky` script, or `.husky/*` hook | hook command blocks |
 | Jest | `jest` package or script | `jest.config.*`, `package.json`, `--config`, `-c` |
+| Lefthook | `lefthook` package, `lefthook` script, or `lefthook.yml` / `.lefthook.yml` | hook `run` and `script` command blocks |
 | Lerna | `lerna` package or script, or `lerna.json` | `lerna.json` config entry |
 | lint-staged | `lint-staged` package, script, package config, or lint-staged config file | staged-file command blocks |
 | Next | `next` package or script | `next.config.*`, `pages/**`, `app/**`, `src/pages/**`, `src/app/**` |
@@ -85,6 +87,7 @@ Sadrazam also includes capabilities that are not captured cleanly by the origina
 | Rollup | `rollup` package or script | `rollup.config.*`, `--config`, `-c` |
 | Rush | `rush` package or script, or `rush.json` | `rush.json` config entry |
 | Storybook | `storybook` package or script | `.storybook/main.*`, `.storybook/preview.*`, stories globs |
+| Stylelint | `stylelint` package or script | `.stylelintrc*`, `stylelint.config.*`, `extends`, `plugins`, `customSyntax`, `--custom-syntax` |
 | SvelteKit | `@sveltejs/kit` package or `svelte-kit` script | `svelte.config.*`, `vite.config.*`, `src/routes/**`, `src/hooks.*` |
 | Tailwind | `tailwindcss` package or script | `tailwind.config.*`, `postcss.config.*`, `-c` |
 | Turbo | `turbo` package or script | `turbo.json`, `turbo.jsonc` |

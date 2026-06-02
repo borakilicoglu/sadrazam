@@ -168,6 +168,38 @@ const PLUGINS: PluginDefinition[] = [
     },
     analyzeConfig: analyzePostCssConfig,
   },
+  createToolPlugin("biome", ["biome"], ["@biomejs/biome"], [
+    "biome.json",
+    "biome.jsonc",
+  ]),
+  {
+    ...createToolPlugin("stylelint", ["stylelint"], ["stylelint"], [
+      "stylelint.config.{js,cjs,mjs,ts,cts,mts}",
+      ".stylelintrc",
+      ".stylelintrc.{json,jsonc,yml,yaml}",
+    ]),
+    packageFlags: [{ flag: "--custom-syntax" }],
+    analyzeConfig: analyzeStylelintConfig,
+  },
+  {
+    ...createToolPlugin("lefthook", ["lefthook"], ["lefthook"], [
+      "lefthook.yml",
+      "lefthook.yaml",
+      ".lefthook.yml",
+      ".lefthook.yaml",
+    ]),
+    isEnabled: async (context, override) => {
+      if (override === true || isPluginConfigObject(override)) {
+        return true;
+      }
+
+      return (await collectFilesFromPatterns(context.packageDir, [
+        "lefthook.{yml,yaml}",
+        ".lefthook.{yml,yaml}",
+      ])).length > 0;
+    },
+    analyzeConfig: analyzeLefthookConfig,
+  },
   {
     ...createToolPlugin("commitlint", ["commitlint"], ["@commitlint/cli"], [
       `commitlint.config.${CONFIG_EXTENSIONS}`,
@@ -792,6 +824,83 @@ async function analyzePostCssConfig(filePath: string, context: PluginContext): P
   }
 
   return packages.size > 0 ? { packages: [...packages].sort() } : null;
+}
+
+async function analyzeStylelintConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readStructuredConfig(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const packages = new Set<string>();
+  addIfDeclared(packages, context, "stylelint");
+
+  for (const value of toArray(config.extends)) {
+    const packageName = normalizeStylelintConfig(value);
+    if (packageName) {
+      packages.add(packageName);
+    }
+  }
+
+  for (const value of toArray(config.plugins)) {
+    const packageName = normalizeStylelintPlugin(value);
+    if (packageName) {
+      packages.add(packageName);
+    }
+  }
+
+  if (typeof config.customSyntax === "string" && !isLocalStyleReference(config.customSyntax)) {
+    packages.add(getPackageName(config.customSyntax));
+  }
+
+  return packages.size > 0 ? { packages: [...packages].sort() } : null;
+}
+
+async function analyzeLefthookConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
+  const config = await readYamlFile(filePath);
+
+  if (!isRecord(config)) {
+    return null;
+  }
+
+  const source = path.relative(context.packageDir, filePath) || path.basename(filePath);
+  const commands: string[] = [];
+
+  visitUnknown(config, (node) => {
+    if (!isRecord(node)) {
+      return;
+    }
+
+    for (const key of ["run", "script"]) {
+      if (typeof node[key] === "string") {
+        commands.push(node[key]);
+      }
+    }
+  });
+
+  const contribution = await collectCiCommandsContribution(
+    commands.map((command) => ({ command, commandDir: context.packageDir })),
+    context,
+    source,
+  );
+  const packages = new Set(contribution?.packages ?? []);
+  const fileEntries = new Set(contribution?.fileEntries ?? []);
+  const packageUsage = new Map<string, Set<string>>(
+    Object.entries(contribution?.packageUsage ?? {}).map(([packageName, sources]) => [packageName, new Set(sources)] as const),
+  );
+
+  addIfDeclared(packages, context, "lefthook");
+
+  return packages.size > 0 || fileEntries.size > 0
+    ? {
+        packages: [...packages].sort(),
+        fileEntries: [...fileEntries].sort(),
+        packageUsage: Object.fromEntries(
+          [...packageUsage.entries()].map(([packageName, sources]) => [packageName, [...sources].sort()] as const),
+        ),
+      }
+    : null;
 }
 
 async function analyzeCommitlintConfig(filePath: string, context: PluginContext): Promise<PluginContribution | null> {
@@ -1708,6 +1817,7 @@ function resolvePackageScript(tokens: string[]): string | null {
 function getKnownCommandPackage(command: string, _tokens: string[]): string | null {
   const commandPackages: Record<string, string> = {
     babel: "@babel/cli",
+    biome: "@biomejs/biome",
     changeset: "@changesets/cli",
     commitlint: "@commitlint/cli",
     eslint: "eslint",
@@ -1721,6 +1831,7 @@ function getKnownCommandPackage(command: string, _tokens: string[]): string | nu
     prisma: "prisma",
     "release-it": "release-it",
     semgrep: "semgrep",
+    stylelint: "stylelint",
     tsc: "typescript",
     tsx: "tsx",
     turbo: "turbo",
@@ -1730,6 +1841,7 @@ function getKnownCommandPackage(command: string, _tokens: string[]): string | nu
     vite: "vite",
     vitest: "vitest",
     webpack: "webpack",
+    lefthook: "lefthook",
   };
 
   return commandPackages[command] ?? null;
@@ -1881,6 +1993,47 @@ function collectPostCssPlugins(value: unknown): string[] {
   }
 
   return [...packages].filter((packageName) => !isLocalStyleReference(packageName)).sort();
+}
+
+function normalizeStylelintConfig(value: string): string | null {
+  const normalized = stripQuotes(value);
+
+  if (!normalized || isLocalStyleReference(normalized)) {
+    return null;
+  }
+
+  if (normalized.startsWith("stylelint-config-")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("@")) {
+    if (normalized.includes("/stylelint-config")) {
+      return getPackageName(normalized);
+    }
+
+    const [scope, name] = normalized.split("/");
+    return name ? `${scope}/stylelint-config-${name}` : normalized;
+  }
+
+  return `stylelint-config-${normalized}`;
+}
+
+function normalizeStylelintPlugin(value: string): string | null {
+  const normalized = stripQuotes(value);
+
+  if (!normalized || isLocalStyleReference(normalized)) {
+    return null;
+  }
+
+  if (normalized.startsWith("stylelint-")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("@")) {
+    return getPackageName(normalized);
+  }
+
+  return `stylelint-${normalized}`;
 }
 
 function normalizeCommitlintConfig(value: string): string | null {

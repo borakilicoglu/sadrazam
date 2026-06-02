@@ -864,15 +864,18 @@ describe("CLI", () => {
 
     expect(workspace.summary.activePlugins).toEqual([
       "astro",
+      "biome",
       "cypress",
       "eslint",
       "jest",
+      "lefthook",
       "next",
       "playwright",
       "postcss",
       "prettier",
       "rollup",
       "storybook",
+      "stylelint",
       "sveltekit",
       "tailwind",
       "typescript",
@@ -882,6 +885,7 @@ describe("CLI", () => {
     ]);
     expect(workspace.findings).toEqual([]);
     expect(workspace.externalImports).toEqual(expect.arrayContaining([
+      "@biomejs/biome",
       "@astrojs/mdx",
       "@next/bundle-analyzer",
       "@playwright/test",
@@ -900,11 +904,16 @@ describe("CLI", () => {
       "eslint-plugin-react-hooks",
       "html-webpack-plugin",
       "jest",
+      "lefthook",
       "next",
+      "postcss-scss",
       "prettier",
       "prettier-plugin-tailwindcss",
       "rollup",
       "storybook",
+      "stylelint",
+      "stylelint-config-standard",
+      "stylelint-order",
       "tailwindcss",
       "ts-jest",
       "typescript",
