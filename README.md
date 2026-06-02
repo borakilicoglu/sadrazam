@@ -110,6 +110,14 @@ npx sadrazam init
 
 `init` guides you through reporter, scan mode, finding focus, noise exclusions, ignored packages, and custom scan inputs before writing `sadrazam.json`.
 
+Validate config:
+
+```bash
+npx sadrazam doctor
+```
+
+`doctor` checks config values and reports stale allowlist, ignore, and catalog entries.
+
 JSON output:
 
 ```bash

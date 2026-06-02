@@ -17,6 +17,14 @@ sadrazam init
 
 The init flow asks for reporter, scan mode, finding focus, noise exclusions, ignored packages, and optional custom scan inputs before writing `sadrazam.json`.
 
+Validate an existing config:
+
+```bash
+sadrazam doctor
+```
+
+`doctor` checks unsupported reporters, finding types, plugin keys, and stale allowlist, ignore, and catalog entries.
+
 ```json
 {
   "reporter": "json",

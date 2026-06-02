@@ -6,17 +6,20 @@ import type { WorkspaceTarget } from "./workspaceFinder.js";
 
 export const SUPPORTED_REPORTERS = ["text", "json", "compact-json", "toon", "markdown", "sarif"] as const;
 
+export const SUPPORTED_FINDING_TYPES = [
+  "missing",
+  "unresolved-imports",
+  "unused-dependencies",
+  "unused-devDependencies",
+  "misplaced-devDependencies",
+  "unused-files",
+  "unused-exports",
+  "duplicate-exports",
+  "namespace-members",
+] as const;
+
 export type ReporterType = (typeof SUPPORTED_REPORTERS)[number];
-export type FindingType =
-  | "missing"
-  | "unresolved-imports"
-  | "unused-dependencies"
-  | "unused-devDependencies"
-  | "misplaced-devDependencies"
-  | "unused-files"
-  | "unused-exports"
-  | "duplicate-exports"
-  | "namespace-members";
+export type FindingType = (typeof SUPPORTED_FINDING_TYPES)[number];
 
 export interface ActiveFinding {
   type: FindingType;

@@ -24,6 +24,12 @@ sadrazam init
 
 The init prompt covers reporter, scan mode, finding focus, noise exclusions, ignored packages, and custom scan inputs.
 
+Validate config and stale entries:
+
+```bash
+sadrazam doctor
+```
+
 Limit the scan to one workspace:
 
 ```bash

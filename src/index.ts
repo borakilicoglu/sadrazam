@@ -18,8 +18,10 @@ import { loadSadrazamConfig, type SadrazamConfig } from "./config.js";
 import { getActiveFindings, type FindingRules } from "./findings.js";
 import { findSourceFiles } from "./fileFinder.js";
 import { runInit } from "./init.js";
+import { runDoctor } from "./doctor.js";
 import {
   renderReport,
+  SUPPORTED_FINDING_TYPES,
   SUPPORTED_REPORTERS,
   type FindingType,
   type ReportWorkspace,
@@ -44,18 +46,6 @@ const EMPTY_MEMORY: ScanMemory = {
   externalMb: 0,
   arrayBuffersMb: 0,
 };
-
-const SUPPORTED_FINDING_TYPES: FindingType[] = [
-  "missing",
-  "unresolved-imports",
-  "unused-dependencies",
-  "unused-devDependencies",
-  "misplaced-devDependencies",
-  "unused-files",
-  "unused-exports",
-  "duplicate-exports",
-  "namespace-members",
-];
 
 program
   .name("sadrazam")
@@ -136,6 +126,14 @@ program
       console.error(pc.red(`Error: ${message}`));
       process.exitCode = 1;
     }
+  });
+
+program
+  .command("doctor")
+  .description("Validate sadrazam config and report stale config entries")
+  .argument("[target]", "directory to validate", ".")
+  .action(async (target: string) => {
+    process.exitCode = await runDoctor(path.resolve(target));
   });
 
 program.parseAsync(process.argv);

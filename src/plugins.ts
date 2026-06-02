@@ -481,6 +481,8 @@ const PLUGINS: PluginDefinition[] = [
   },
 ];
 
+export const SUPPORTED_PLUGIN_NAMES = PLUGINS.map((plugin) => plugin.name).sort();
+
 export async function analyzePlugins(context: PluginContext): Promise<PluginAnalysis> {
   const activePlugins = new Set<string>();
   const commandPackages = new Set<string>();

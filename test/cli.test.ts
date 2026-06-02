@@ -133,6 +133,83 @@ describe("CLI", () => {
     }
   });
 
+  it("validates config defaults with doctor", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-doctor-defaults-");
+
+    try {
+      const stdout = execFileSync("node", [cliPath, "doctor", tempProject], {
+        cwd: rootDir,
+        encoding: "utf8",
+      });
+
+      expect(stdout).toContain("Config source: defaults");
+      expect(stdout).toContain("OK: no config file found; using defaults.");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("reports invalid config entries with doctor", () => {
+    const { tempRoot, tempProject } = createTempProject("sadrazam-doctor-invalid-");
+    writeFileSync(
+      path.join(tempProject, "sadrazam.json"),
+      `${JSON.stringify({
+        reporter: "xml",
+        include: ["unused-files", "nope"],
+        maxShowIssues: 0,
+        plugins: {
+          nope: true,
+          vite: { config: 123 },
+        },
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    try {
+      let stdout = "";
+      let status = 0;
+
+      try {
+        execFileSync("node", [cliPath, "doctor", tempProject], {
+          cwd: rootDir,
+          encoding: "utf8",
+        });
+      } catch (error) {
+        const typedError = error as { stdout: string; status: number };
+        stdout = typedError.stdout;
+        status = typedError.status;
+      }
+
+      expect(status).toBe(1);
+      expect(stdout).toContain('reporter "xml" is not supported');
+      expect(stdout).toContain('include contains unsupported finding type "nope"');
+      expect(stdout).toContain("maxShowIssues must be a positive integer.");
+      expect(stdout).toContain("plugins.nope is not a supported plugin");
+      expect(stdout).toContain("plugins.vite must be a boolean or an object with config and/or entry.");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("reports stale config hints with doctor", () => {
+    const fixtureDir = path.join(rootDir, "test", "fixtures", "config-project");
+    let stdout = "";
+    let status = 0;
+
+    try {
+      execFileSync("node", [cliPath, "doctor", fixtureDir], {
+        cwd: rootDir,
+        encoding: "utf8",
+      });
+    } catch (error) {
+      const typedError = error as { stdout: string; status: number };
+      stdout = typedError.stdout;
+      status = typedError.status;
+    }
+
+    expect(status).toBe(1);
+    expect(stdout).toContain('allowUnusedDevDependencies entry "typescript" has no effect and can be removed.');
+  });
 
   it("resolves catalog references and reports unused catalog entries", () => {
     const report = runJsonReport("catalog-project");
