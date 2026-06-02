@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.23
+
+### Added
+- `sadrazam doctor` command to validate config and report stale allowlist, ignore, and catalog entries
+- Config validation for unsupported reporters, finding types, plugin keys, plugin config shapes, and positive integer options
+
 ## v0.1.22
 
 ### Added
